@@ -1,0 +1,5 @@
+{
+  "name": "FinancePro - Minimalist Personal Finance",
+  "description": "A lightweight, privacy-focused personal finance manager that uses AI to provide spending insights and keeps all data locally on your device.",
+  "requestFramePermissions": []
+}
