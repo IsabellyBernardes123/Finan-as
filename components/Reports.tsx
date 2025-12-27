@@ -81,16 +81,17 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories, onDelete, o
 
   return (
     <div className="space-y-4 md:space-y-6 pb-20 md:pb-0">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
-        <div className="bg-white p-5 md:p-7 rounded-xl shadow-sm border border-slate-50 flex flex-col justify-center">
+      {/* Cabeçalho de Resumo Otimizado para Impressão */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 print:mb-8 print:border-b print:pb-6">
+        <div className="bg-white p-5 md:p-7 rounded-xl shadow-sm border border-slate-50 flex flex-col justify-center print:border-none print:p-0">
           <p className="text-slate-400 text-[9px] font-bold uppercase tracking-[0.1em] mb-1">PATRIMÔNIO LÍQUIDO</p>
           <h3 className="text-xl md:text-3xl font-bold text-slate-900">{formatCurrency(summary.balance)}</h3>
         </div>
-        <div className="bg-white p-5 md:p-7 rounded-xl shadow-sm border border-slate-50 flex flex-col justify-center">
+        <div className="bg-white p-5 md:p-7 rounded-xl shadow-sm border border-slate-50 flex flex-col justify-center print:border-none print:p-0">
           <p className="text-slate-400 text-[9px] font-bold uppercase tracking-[0.1em] mb-1">ENTRADAS</p>
           <h3 className="text-xl md:text-3xl font-bold text-teal-600">{formatCurrency(summary.income)}</h3>
         </div>
-        <div className="bg-white p-5 md:p-7 rounded-xl shadow-sm border border-slate-50 flex flex-col justify-center">
+        <div className="bg-white p-5 md:p-7 rounded-xl shadow-sm border border-slate-50 flex flex-col justify-center print:border-none print:p-0">
           <p className="text-slate-400 text-[9px] font-bold uppercase tracking-[0.1em] mb-1">SAÍDAS</p>
           <h3 className="text-xl md:text-3xl font-bold text-rose-500">{formatCurrency(summary.expenses)}</h3>
         </div>
@@ -141,8 +142,8 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories, onDelete, o
         </div>
       </div>
 
-      <div className="bg-white p-4 md:p-10 rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
+      <div className="bg-white p-4 md:p-10 rounded-xl shadow-sm border border-slate-100 overflow-hidden print:p-0 print:border-none print:shadow-none">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8 print:mb-4">
           <div>
             <h2 className="text-lg md:text-2xl font-bold text-slate-900 tracking-tight">Registros do Período</h2>
             <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">
@@ -168,8 +169,8 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories, onDelete, o
           </div>
         </div>
 
-        <div className="overflow-x-auto scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
-          <table className="w-full text-left min-w-[700px]">
+        <div className="overflow-x-auto scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0 print:overflow-visible print:mx-0 print:px-0">
+          <table className="w-full text-left min-w-[700px] print:min-w-0">
             <thead>
               <tr className="text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b-2 border-slate-50 bg-slate-50/20">
                 <th className="py-5 px-4 text-center w-16 no-print">Pago</th>
@@ -197,12 +198,12 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories, onDelete, o
                     {new Date(t.date).toLocaleDateString('pt-BR')}
                   </td>
                   <td className="py-6 px-4">
-                    <p className={`text-sm font-semibold text-slate-900 truncate max-w-[150px] md:max-w-none ${!t.is_paid ? 'text-slate-400 line-through decoration-slate-300' : ''}`}>
+                    <p className={`text-sm font-semibold text-slate-900 truncate max-w-[150px] md:max-w-none print:max-w-none ${!t.is_paid ? 'text-slate-400 line-through decoration-slate-300' : ''}`}>
                       {t.description}
                     </p>
                   </td>
                   <td className="py-6 px-4 whitespace-nowrap">
-                    <span className="px-3 py-1 bg-slate-50 border border-slate-100 rounded text-[9px] font-bold text-indigo-600 uppercase tracking-tighter">
+                    <span className="px-3 py-1 bg-slate-50 border border-slate-100 rounded text-[9px] font-bold text-indigo-600 uppercase tracking-tighter print:border-none print:p-0">
                       {t.category}
                     </span>
                   </td>
