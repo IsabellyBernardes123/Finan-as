@@ -23,6 +23,7 @@ export interface Transaction {
   card_id?: string;
   is_split?: boolean;
   split_details?: SplitDetails;
+  is_paid: boolean;
 }
 
 export interface CreditCard {
