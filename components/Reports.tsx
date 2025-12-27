@@ -11,9 +11,17 @@ interface ReportsProps {
 }
 
 const Reports: React.FC<ReportsProps> = ({ transactions, categories, onDelete, onTogglePaid, onEdit }) => {
-  const currentYYYYMM = new Date().toISOString().slice(0, 7);
+  const getInitialDates = () => {
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+    return { firstDay, lastDay };
+  };
+
+  const { firstDay: initStart, lastDay: initEnd } = getInitialDates();
   const [filter, setFilter] = useState<'all' | 'income' | 'expense'>('all');
-  const [selectedMonth, setSelectedMonth] = useState(currentYYYYMM);
+  const [startDate, setStartDate] = useState(initStart);
+  const [endDate, setEndDate] = useState(initEnd);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'paid' | 'pending'>('all');
 
@@ -21,8 +29,8 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories, onDelete, o
     const filtered = transactions
       .filter(t => {
         if (filter !== 'all' && t.type !== filter) return false;
-        const tMonth = t.date.slice(0, 7);
-        if (selectedMonth && tMonth !== selectedMonth) return false;
+        const tDate = t.date.split('T')[0];
+        if (tDate < startDate || tDate > endDate) return false;
         if (selectedCategory !== 'all' && t.category !== selectedCategory) return false;
         if (statusFilter === 'paid' && !t.is_paid) return false;
         if (statusFilter === 'pending' && t.is_paid) return false;
@@ -43,14 +51,16 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories, onDelete, o
     }, { balance: 0, income: 0, expenses: 0 } as Summary);
 
     return { filteredTransactions: filtered, summary: stats };
-  }, [transactions, filter, selectedMonth, selectedCategory, statusFilter]);
+  }, [transactions, filter, startDate, endDate, selectedCategory, statusFilter]);
 
   const formatCurrency = (val: number) => 
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
   const resetFilters = () => {
+    const { firstDay, lastDay } = getInitialDates();
     setFilter('all');
-    setSelectedMonth(currentYYYYMM);
+    setStartDate(firstDay);
+    setEndDate(lastDay);
     setSelectedCategory('all');
     setStatusFilter('all');
   };
@@ -73,7 +83,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories, onDelete, o
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `extrato_${selectedMonth}.csv`);
+    link.setAttribute("download", `extrato_${startDate}_ate_${endDate}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -81,7 +91,6 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories, onDelete, o
 
   return (
     <div className="space-y-4 md:space-y-6 pb-20 md:pb-0">
-      {/* Cabeçalho de Resumo Otimizado para Impressão */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 print:mb-8 print:border-b print:pb-6">
         <div className="bg-white p-5 md:p-7 rounded-xl shadow-sm border border-slate-50 flex flex-col justify-center print:border-none print:p-0">
           <p className="text-slate-400 text-[9px] font-bold uppercase tracking-[0.1em] mb-1">PATRIMÔNIO LÍQUIDO</p>
@@ -98,18 +107,31 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories, onDelete, o
       </div>
 
       <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-100 no-print">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-          <div>
-            <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5">Mês de Referência</label>
-            <input 
-              type="month" 
-              value={selectedMonth} 
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="w-full bg-slate-50 border-none rounded-lg px-4 py-3 text-xs font-bold text-indigo-600 outline-none"
-            />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+          <div className="col-span-1 sm:col-span-2 grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-[9px] font-bold text-slate-400 uppercase mb-2 block">Início</label>
+              <input 
+                type="date" 
+                value={startDate} 
+                onChange={(e) => setStartDate(e.target.value)}
+                style={{ colorScheme: 'light' }}
+                className="w-full bg-slate-50 border-none rounded-lg px-3 py-3 text-xs font-bold text-indigo-600 outline-none"
+              />
+            </div>
+            <div>
+              <label className="text-[9px] font-bold text-slate-400 uppercase mb-2 block">Fim</label>
+              <input 
+                type="date" 
+                value={endDate} 
+                onChange={(e) => setEndDate(e.target.value)}
+                style={{ colorScheme: 'light' }}
+                className="w-full bg-slate-50 border-none rounded-lg px-3 py-3 text-xs font-bold text-indigo-600 outline-none"
+              />
+            </div>
           </div>
           <div>
-            <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5">Categoria</label>
+            <label className="text-[9px] font-bold text-slate-400 uppercase mb-2 block">Categoria</label>
             <select 
               value={selectedCategory} 
               onChange={(e) => setSelectedCategory(e.target.value)}
@@ -122,14 +144,14 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories, onDelete, o
             </select>
           </div>
           <div>
-            <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5">Status Pago</label>
+            <label className="text-[9px] font-bold text-slate-400 uppercase mb-2 block">Status</label>
             <select 
               value={statusFilter} 
               onChange={(e) => setStatusFilter(e.target.value as any)}
               className="w-full bg-slate-50 border-none rounded-lg px-4 py-3 text-xs font-bold text-slate-700 outline-none"
             >
               <option value="all">Todos</option>
-              <option value="paid">Já Pagos</option>
+              <option value="paid">Pagos</option>
               <option value="pending">Pendentes</option>
             </select>
           </div>
@@ -137,7 +159,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories, onDelete, o
             onClick={resetFilters}
             className="w-full py-3 text-[9px] font-bold text-slate-400 uppercase hover:text-indigo-600 transition-colors text-center"
           >
-            Limpar Filtros
+            Resetar
           </button>
         </div>
       </div>
@@ -147,7 +169,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories, onDelete, o
           <div>
             <h2 className="text-lg md:text-2xl font-bold text-slate-900 tracking-tight">Registros do Período</h2>
             <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">
-              Listando {filteredTransactions.length} registros
+              Filtrado de {new Date(startDate).toLocaleDateString('pt-BR')} até {new Date(endDate).toLocaleDateString('pt-BR')}
             </p>
           </div>
           

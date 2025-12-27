@@ -44,17 +44,17 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onSelectUser }) => {
         });
         if (signInError) throw signInError;
         
-        // Buscar nome do perfil após login
+        // Buscar nome do perfil após login usando maybeSingle()
         const { data: profile } = await supabase
           .from('profiles')
           .select('name, avatar_color')
           .eq('id', data.user.id)
-          .single();
+          .maybeSingle();
 
         if (data.user) {
           onSelectUser({
             id: data.user.id,
-            name: profile?.name || data.user.email?.split('@')[0] || 'User',
+            name: profile?.name || data.user.email?.split('@')[0] || 'Usuário',
             avatarColor: profile?.avatar_color || '#4f46e5'
           });
         }

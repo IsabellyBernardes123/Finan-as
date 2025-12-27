@@ -3,8 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { Transaction, TransactionType, UserCategories, CreditCard, SplitDetails } from '../types';
 
 interface TransactionFormProps {
-  onAdd: (data: any) => void;
-  onUpdate?: (id: string, data: any) => void;
+  onAdd: (data: any) => Promise<boolean>;
+  onUpdate?: (id: string, data: any) => Promise<boolean>;
   editingTransaction?: Transaction | null;
   categories: UserCategories;
   cards: CreditCard[];
@@ -31,8 +31,9 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
   const [isFixedValue, setIsFixedValue] = useState(false);
   const [isSplit, setIsSplit] = useState(false);
   const [partnerPart, setPartnerPart] = useState('');
-  const [partnerName, setPartnerName] = useState('Esposa');
+  const [partnerName, setPartnerName] = useState('Isa');
   const [success, setSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (editingTransaction) {
@@ -48,79 +49,119 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
         setPartnerName(editingTransaction.split_details.partnerName);
       }
     } else {
+      setDescription('');
+      setAmount('');
+      setDate(new Date().toISOString().split('T')[0]);
+      setType(initialType);
       setCategory(initialType === 'expense' ? 'Cartão' : categories[initialType][0] || '');
+      setSelectedCardId('');
+      setInstallments(1);
+      setIsFixedValue(false);
+      setIsSplit(false);
+      setPartnerPart('');
+      setPartnerName('Isa');
     }
   }, [editingTransaction, initialType, categories]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!description || !amount || !date) return;
+    if (!description || !amount || !date || loading) return;
 
-    const inputValue = parseFloat(amount);
+    setLoading(true);
     
-    if (editingTransaction && onUpdate) {
-      const splitInfo: SplitDetails | undefined = isSplit ? {
-        userPart: inputValue - (parseFloat(partnerPart) || 0),
-        partnerPart: parseFloat(partnerPart) || 0,
-        partnerName: partnerName
-      } : undefined;
+    try {
+      const inputValue = parseFloat(amount);
+      const getSafeISO = (dateStr: string) => {
+        const d = new Date(dateStr + 'T12:00:00');
+        if (isNaN(d.getTime())) throw new Error("Data inválida");
+        return d.toISOString();
+      };
 
-      onUpdate(editingTransaction.id, {
-        description,
-        amount: inputValue,
-        type,
-        category,
-        date: new Date(date).toISOString(),
-        card_id: selectedCardId || null,
-        is_split: isSplit,
-        split_details: splitInfo
-      });
-      
-      setSuccess(true);
-      setTimeout(() => {
-        setSuccess(false);
-        if (onCancel) onCancel();
-      }, 800);
-      return;
+      if (editingTransaction && onUpdate) {
+        console.log('Iniciando atualização...');
+        const splitInfo: SplitDetails | undefined = isSplit ? {
+          userPart: inputValue - (parseFloat(partnerPart) || 0),
+          partnerPart: parseFloat(partnerPart) || 0,
+          partnerName: partnerName
+        } : undefined;
+
+        const res = await onUpdate(editingTransaction.id, {
+          description,
+          amount: inputValue,
+          type,
+          category,
+          date: getSafeISO(date),
+          card_id: selectedCardId || null,
+          is_split: isSplit,
+          split_details: splitInfo,
+          is_paid: editingTransaction.is_paid
+        });
+        
+        if (res) {
+          setSuccess(true);
+          setTimeout(() => {
+            setSuccess(false);
+            setLoading(false);
+            if (onCancel) onCancel();
+          }, 800);
+        } else {
+          setLoading(false);
+          alert('Não foi possível salvar as alterações. Verifique sua conexão ou tente novamente.');
+        }
+        return;
+      }
+
+      // Lógica de Adição (Parcelamento/Recorrência)
+      const numInstallments = Math.max(1, installments);
+      const amountPerInstallment = isFixedValue ? inputValue : (inputValue / numInstallments);
+      const pPartTotal = isSplit ? parseFloat(partnerPart) || inputValue / 2 : 0;
+      const pPartPerMonth = isFixedValue ? pPartTotal : (pPartTotal / numInstallments);
+      const uPartPerMonth = amountPerInstallment - pPartPerMonth;
+
+      const [year, month, day] = date.split('-').map(Number);
+      let allSuccess = true;
+
+      for (let i = 0; i < numInstallments; i++) {
+        const targetDate = new Date(year, month - 1 + i, day, 12, 0, 0);
+        const labelPrefix = isFixedValue ? '[REC] ' : '';
+        const installmentLabel = numInstallments > 1 ? ` (${i + 1}/${numInstallments})` : '';
+        
+        const splitInfo: SplitDetails | undefined = isSplit ? {
+          userPart: uPartPerMonth,
+          partnerPart: pPartPerMonth,
+          partnerName: partnerName
+        } : undefined;
+
+        const res = await onAdd({
+          description: labelPrefix + description + installmentLabel,
+          amount: amountPerInstallment,
+          type,
+          category: selectedCardId ? 'Cartão' : category || 'Outros',
+          date: targetDate.toISOString(),
+          card_id: selectedCardId || null,
+          is_split: isSplit,
+          split_details: splitInfo,
+          is_paid: type === 'income' 
+        });
+        if (!res) allSuccess = false;
+      }
+
+      if (allSuccess) {
+        setSuccess(true);
+        setTimeout(() => {
+          setSuccess(false);
+          setLoading(false);
+          if (onCancel) onCancel();
+        }, 1000);
+      } else {
+        setLoading(false);
+        alert('Ocorreu um erro ao cadastrar um ou mais lançamentos.');
+      }
+    } catch (err: any) {
+      console.error('Erro crítico no formulário:', err);
+      setLoading(false);
+      alert('Erro inesperado: ' + (err.message || 'Falha ao processar dados'));
     }
-
-    const numInstallments = Math.max(1, installments);
-    const amountPerInstallment = isFixedValue ? inputValue : (inputValue / numInstallments);
-    const pPartTotal = isSplit ? parseFloat(partnerPart) || inputValue / 2 : 0;
-    const pPartPerMonth = isFixedValue ? pPartTotal : (pPartTotal / numInstallments);
-    const uPartPerMonth = amountPerInstallment - pPartPerMonth;
-
-    const [year, month, day] = date.split('-').map(Number);
-
-    for (let i = 0; i < numInstallments; i++) {
-      const targetDate = new Date(year, month - 1 + i, day);
-      const labelPrefix = isFixedValue ? '[REC] ' : '';
-      const installmentLabel = numInstallments > 1 ? ` (${i + 1}/${numInstallments})` : '';
-      
-      const splitInfo: SplitDetails | undefined = isSplit ? {
-        userPart: uPartPerMonth,
-        partnerPart: pPartPerMonth,
-        partnerName: partnerName
-      } : undefined;
-
-      onAdd({
-        description: labelPrefix + description + installmentLabel,
-        amount: amountPerInstallment,
-        type,
-        category: selectedCardId ? 'Cartão' : category || 'Outros',
-        date: targetDate.toISOString(),
-        card_id: selectedCardId || null,
-        is_split: isSplit,
-        split_details: splitInfo,
-        is_paid: type === 'income' 
-      });
-    }
-
-    setSuccess(true);
-    setTimeout(() => {
-      setSuccess(false);
-      if (onCancel) onCancel();
-    }, 1000);
   };
 
   return (
@@ -158,7 +199,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Valor {isFixedValue ? '(por mês)' : 'Total'}</label>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Valor Total</label>
               <input type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border-2 border-transparent focus:border-indigo-100 rounded-lg outline-none text-sm font-bold text-slate-900 placeholder:text-slate-300" placeholder="0,00" required />
             </div>
             <div>
@@ -200,11 +241,6 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
                 </div>
               </div>
               <input type="number" min="1" max="60" value={installments} onChange={e => setInstallments(parseInt(e.target.value) || 1)} className="w-full px-4 py-2 bg-white border border-slate-100 rounded outline-none text-sm font-bold text-slate-900" />
-              <p className="mt-2 text-[9px] text-slate-400 font-medium italic">
-                {isFixedValue 
-                  ? `Isso gerará ${installments} lançamentos de R$ ${amount || '0'} cada um.` 
-                  : `Isso dividirá R$ ${amount || '0'} em ${installments} parcelas.`}
-              </p>
             </div>
           )}
 
@@ -232,17 +268,20 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
                       <input type="number" value={partnerPart} onChange={e => setPartnerPart(e.target.value)} placeholder="0,00" className="w-full px-3 py-2 bg-white rounded border border-indigo-100 text-xs font-bold text-slate-900" />
                     </div>
                   </div>
-                  <div className="text-[10px] text-indigo-600 font-medium italic text-center">
-                    Sua parte: R$ {(parseFloat(amount || '0') - parseFloat(partnerPart || '0')).toFixed(2)}
-                  </div>
                 </div>
               )}
             </div>
           )}
         </div>
 
-        <button type="submit" disabled={success} className={`w-full py-4 rounded-lg text-xs font-bold uppercase tracking-widest transition-all text-white shadow-lg ${success ? 'bg-teal-500 shadow-teal-100' : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-100'}`}>
-          {success ? '✓ Salvo com Sucesso' : (editingTransaction ? 'Salvar Alterações' : 'Confirmar Lançamento')}
+        <button 
+          type="submit" 
+          disabled={success || loading} 
+          className={`w-full py-4 rounded-lg text-xs font-bold uppercase tracking-widest transition-all text-white shadow-lg ${
+            success ? 'bg-teal-500 shadow-teal-100' : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-100 disabled:opacity-50'
+          }`}
+        >
+          {loading ? 'Salvando...' : (success ? '✓ Salvo com Sucesso' : (editingTransaction ? 'Salvar Alterações' : 'Confirmar Lançamento'))}
         </button>
       </form>
     </div>
