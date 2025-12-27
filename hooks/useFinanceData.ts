@@ -19,15 +19,12 @@ export const useFinanceData = (userId: string | null) => {
     setLoading(true);
 
     try {
-      // 1. Perfil e Categorias
       const { data: profile } = await supabase.from('profiles').select('categories').eq('id', userId).single();
       if (profile?.categories) setCategories(profile.categories as unknown as UserCategories);
 
-      // 2. Cartões
       const { data: cardsData } = await supabase.from('credit_cards').select('*').eq('user_id', userId);
       setCards(cardsData || []);
 
-      // 3. Transações
       const { data: transData, error: transError } = await supabase
         .from('transactions')
         .select('*')
@@ -52,12 +49,25 @@ export const useFinanceData = (userId: string | null) => {
     try {
       const { data, error } = await supabase
         .from('transactions')
-        .insert([{ ...transaction, user_id: userId }])
+        .insert([{ ...transaction, user_id: userId, is_paid: transaction.is_paid ?? true }])
         .select().single();
       if (error) throw error;
       setTransactions(prev => [data, ...prev]);
     } catch (err) { console.error(err); }
   }, [userId]);
+
+  const togglePaid = useCallback(async (id: string, currentStatus: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('transactions')
+        .update({ is_paid: !currentStatus })
+        .eq('id', id);
+      
+      if (!error) {
+        setTransactions(prev => prev.map(t => t.id === id ? { ...t, is_paid: !currentStatus } : t));
+      }
+    } catch (err) { console.error(err); }
+  }, []);
 
   const addCard = async (card: Omit<CreditCard, 'id'>) => {
     if (!userId) return;
@@ -93,8 +103,6 @@ export const useFinanceData = (userId: string | null) => {
 
   const getSummary = (): Summary => {
     return transactions.reduce((acc, t) => {
-      // Se for dividido, o impacto no balanço pessoal pode ser apenas a parte do usuário
-      // mas como o usuário pediu que "entre nas despesas", vamos considerar o valor total da parcela
       const amt = Number(t.amount);
       if (t.type === 'income') {
         acc.income += amt;
@@ -109,7 +117,7 @@ export const useFinanceData = (userId: string | null) => {
 
   return {
     transactions, cards, categories,
-    addTransaction, deleteTransaction,
+    addTransaction, deleteTransaction, togglePaid,
     addCard, deleteCard,
     addCategory, deleteCategory,
     summary: getSummary(),
