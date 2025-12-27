@@ -98,14 +98,20 @@ const App: React.FC = () => {
       const matchesDate = tDate >= startDate && tDate <= endDate;
       const matchesCategory = selectedCategory === 'all' || t.category === selectedCategory;
       let matchesPayer = true;
-      if (selectedPayer === 'individual') matchesPayer = !t.is_split;
+      if (selectedPayer === 'individual') matchesPayer = true; // No "Apenas Eu", mostramos tudo, mas o valor será ajustado no resumo
       else if (selectedPayer !== 'all') matchesPayer = t.is_split && t.split_details?.partnerName === selectedPayer;
       
       return matchesDate && matchesCategory && matchesPayer;
     });
 
     const summary: Summary = filtered.reduce((acc, t) => {
-      const amt = Number(t.amount);
+      let amt = Number(t.amount);
+      if (selectedPayer === 'individual' && t.is_split && t.split_details) {
+        amt = Number(t.split_details.userPart);
+      } else if (selectedPayer !== 'all' && t.is_split && t.split_details) {
+        amt = Number(t.split_details.partnerPart);
+      }
+
       if (t.type === 'income') { acc.income += amt; acc.balance += amt; }
       else { acc.expenses += amt; acc.balance -= amt; }
       return acc;
@@ -152,7 +158,7 @@ const App: React.FC = () => {
         if (statusFilter === 'paid' && !t.is_paid) return false;
         if (statusFilter === 'pending' && t.is_paid) return false;
         
-        if (selectedPayer === 'individual') return !t.is_split;
+        if (selectedPayer === 'individual') return true;
         if (selectedPayer !== 'all') return t.is_split && t.split_details?.partnerName === selectedPayer;
         
         return true;
@@ -209,6 +215,14 @@ const App: React.FC = () => {
             <tbody className="divide-y divide-slate-50">
               {filtered.map((t) => {
                 const card = cards.find(c => c.id === t.card_id);
+                // Calcula o valor a exibir baseado no filtro
+                let displayAmount = t.amount;
+                if (selectedPayer === 'individual' && t.is_split && t.split_details) {
+                  displayAmount = t.split_details.userPart;
+                } else if (selectedPayer !== 'all' && t.is_split && t.split_details) {
+                  displayAmount = t.split_details.partnerPart;
+                }
+
                 return (
                   <tr key={t.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="py-5 px-6 text-center">
@@ -244,7 +258,7 @@ const App: React.FC = () => {
                       ) : <span className="text-[9px] text-slate-300 font-bold uppercase">Individual</span>}
                     </td>
                     <td className={`py-5 px-6 text-right text-sm font-bold ${t.type === 'income' ? 'text-teal-600' : 'text-rose-500'} ${!t.is_paid ? 'opacity-40' : ''}`}>
-                      {formatCurrency(t.amount)}
+                      {formatCurrency(displayAmount)}
                     </td>
                     <td className="py-5 px-6">
                       <div className="flex justify-center gap-2">
@@ -268,6 +282,22 @@ const App: React.FC = () => {
       case 'dashboard':
         return (
           <div className="space-y-6 md:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-24 md:pb-0">
+            {/* Saudação Personalizada Estilizada - Compactada e Atualizada */}
+            <div className="mb-8">
+              <div className="flex items-center gap-2 mb-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-indigo-500">
+                  <path d="M12 3l1.912 5.886h6.191l-5.008 3.639 1.912 5.886-5.007-3.64-5.007 3.64 1.912-5.886-5.008-3.639h6.191z" />
+                </svg>
+                <span className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em]">Painel Administrativo</span>
+              </div>
+              <h1 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                Olá, <span className="text-indigo-600">{currentUser?.name.split(' ')[0]}!</span> 👋
+              </h1>
+              <p className="text-sm font-medium text-slate-400 mt-1">
+                aqui esta um resumo das suas finanças
+              </p>
+            </div>
+
             <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
               <div className="flex items-center gap-2">
                 <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="bg-slate-50 border-none rounded-lg px-4 py-2 text-xs font-bold text-indigo-600 outline-none" />
@@ -340,8 +370,7 @@ const App: React.FC = () => {
     'payer-reports': 'Extrato por Pagante'
   };
 
-  // Condição para mostrar o botão de Novo Lançamento
-  const showNewTransactionButton = currentView !== 'reports' && currentView !== 'payer-reports';
+  const showNewTransactionButton = currentView !== 'dashboard' && currentView !== 'reports' && currentView !== 'payer-reports';
 
   return (
     <div className="flex min-h-screen bg-slate-50/50">
