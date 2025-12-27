@@ -14,15 +14,20 @@
         }
         /* Estilos de Impressão */
         @media print {
+            @page {
+                margin: 10mm;
+                size: portrait;
+            }
             aside, nav, .no-print, button, input, select, .sidebar-mobile, header {
                 display: none !important;
             }
             body {
                 background-color: white !important;
+                font-size: 10pt !important;
             }
             main {
                 margin: 0 !important;
-                padding: 20px !important;
+                padding: 0 !important;
                 width: 100% !important;
             }
             .bg-white {
@@ -30,21 +35,41 @@
                 box-shadow: none !important;
                 padding: 0 !important;
             }
-            .rounded-[24px], .rounded-[32px] {
+            .rounded-xl, .rounded-2xl {
                 border-radius: 0 !important;
             }
             table {
                 width: 100% !important;
+                min-width: 0 !important;
+                table-layout: auto !important;
                 border-collapse: collapse !important;
             }
             th, td {
-                border-bottom: 1px solid #e2e8f0 !important;
+                border-bottom: 1px solid #f1f5f9 !important;
                 padding: 10px 5px !important;
-                font-size: 10pt !important;
+                word-wrap: break-word !important;
             }
-            h2 {
+            /* Garantir que a coluna de valor não corte */
+            th:last-child, td:last-child {
+                text-align: right !important;
+                white-space: nowrap !important;
+                padding-right: 0 !important;
+            }
+            h2, h3 {
+                color: black !important;
                 margin-top: 0 !important;
             }
+            .grid {
+                display: block !important;
+            }
+            .bg-slate-50, .bg-indigo-50 {
+                background-color: transparent !important;
+                border-bottom: 1px solid #f1f5f9 !important;
+            }
+            /* Forçar cores de texto na impressão */
+            .text-teal-600 { color: #0d9488 !important; }
+            .text-rose-500 { color: #f43f5e !important; }
+            .text-indigo-600 { color: #4f46e5 !important; }
         }
     </style>
 <script type="importmap">
