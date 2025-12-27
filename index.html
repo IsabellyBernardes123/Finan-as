@@ -12,6 +12,19 @@
             font-family: 'Inter', sans-serif;
             background-color: #f9fafb;
         }
+
+        /* Correção para o ícone do calendário invisível */
+        input[type="date"] {
+            color-scheme: light;
+            position: relative;
+        }
+
+        /* Garante que o ícone seja visível e clicável */
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            cursor: pointer;
+            filter: invert(0.2); /* Escurece um pouco o ícone para melhor contraste */
+        }
+
         /* Estilos de Impressão */
         @media print {
             @page {
@@ -49,7 +62,6 @@
                 padding: 10px 5px !important;
                 word-wrap: break-word !important;
             }
-            /* Garantir que a coluna de valor não corte */
             th:last-child, td:last-child {
                 text-align: right !important;
                 white-space: nowrap !important;
@@ -66,7 +78,6 @@
                 background-color: transparent !important;
                 border-bottom: 1px solid #f1f5f9 !important;
             }
-            /* Forçar cores de texto na impressão */
             .text-teal-600 { color: #0d9488 !important; }
             .text-rose-500 { color: #f43f5e !important; }
             .text-indigo-600 { color: #4f46e5 !important; }
