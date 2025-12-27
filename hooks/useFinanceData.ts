@@ -56,6 +56,19 @@ export const useFinanceData = (userId: string | null) => {
     } catch (err) { console.error(err); }
   }, [userId]);
 
+  const updateTransaction = useCallback(async (id: string, updates: Partial<Transaction>) => {
+    try {
+      const { data, error } = await supabase
+        .from('transactions')
+        .update(updates)
+        .eq('id', id)
+        .select().single();
+      
+      if (error) throw error;
+      setTransactions(prev => prev.map(t => t.id === id ? data : t));
+    } catch (err) { console.error(err); }
+  }, []);
+
   const togglePaid = useCallback(async (id: string, currentStatus: boolean) => {
     try {
       const { error } = await supabase
@@ -117,7 +130,7 @@ export const useFinanceData = (userId: string | null) => {
 
   return {
     transactions, cards, categories,
-    addTransaction, deleteTransaction, togglePaid,
+    addTransaction, updateTransaction, deleteTransaction, togglePaid,
     addCard, deleteCard,
     addCategory, deleteCategory,
     summary: getSummary(),
