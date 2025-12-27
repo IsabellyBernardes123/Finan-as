@@ -5,7 +5,8 @@ import { supabase } from '../services/supabaseClient';
 
 const DEFAULT_CATEGORIES: UserCategories = {
   expense: ['Alimentação', 'Moradia', 'Transporte', 'Lazer', 'Saúde', 'Cartão', 'Outros'],
-  income: ['Salário', 'Freelance', 'Investimentos', 'Presentes', 'Outros']
+  income: ['Salário', 'Freelance', 'Investimentos', 'Presentes', 'Outros'],
+  payers: ['Isa'] // Pagante padrão inicial
 };
 
 export const useFinanceData = (userId: string | null) => {
@@ -26,7 +27,13 @@ export const useFinanceData = (userId: string | null) => {
         .maybeSingle();
 
       if (profile?.categories) {
-        setCategories(profile.categories as unknown as UserCategories);
+        const cats = profile.categories as unknown as UserCategories;
+        // Garantir que a propriedade payers exista para contas antigas
+        setCategories({
+          ...DEFAULT_CATEGORIES,
+          ...cats,
+          payers: cats.payers || DEFAULT_CATEGORIES.payers
+        });
       }
 
       const { data: cardsData } = await supabase.from('credit_cards').select('*').eq('user_id', userId);
@@ -73,18 +80,12 @@ export const useFinanceData = (userId: string | null) => {
 
   const updateTransaction = useCallback(async (id: string, updates: Partial<Transaction>) => {
     if (!userId || !id) return false;
-    
     try {
-      // Campos permitidos para atualização (removemos o que não deve ser enviado)
       const allowedKeys = ['description', 'amount', 'type', 'category', 'date', 'card_id', 'is_split', 'split_details', 'is_paid'];
       const payload = Object.fromEntries(
         Object.entries(updates).filter(([key]) => allowedKeys.includes(key))
       );
 
-      console.log('Update payload:', payload);
-
-      // Executa o update sem filtro redundante de user_id no .eq se o RLS já estiver cuidando disso, 
-      // mas mantemos para garantir que o usuário só edite o que é dele.
       const { data, error } = await supabase
         .from('transactions')
         .update(payload)
@@ -92,21 +93,14 @@ export const useFinanceData = (userId: string | null) => {
         .eq('user_id', userId)
         .select();
       
-      if (error) {
-        console.error('Erro Supabase:', error.message);
-        return false;
-      }
-
+      if (error) return false;
       if (data && data.length > 0) {
         setTransactions(prev => prev.map(t => t.id === id ? data[0] : t));
         return true;
       }
-      
-      // Se chegou aqui, a query rodou mas 0 linhas foram afetadas (Erro de RLS no Banco)
-      console.error('Erro RLS: O banco de dados recusou a atualização. Verifique as Policies no Supabase.');
       return false;
     } catch (err) { 
-      console.error('Erro inesperado no update:', err);
+      console.error('Erro no update:', err);
       return false;
     }
   }, [userId]);
@@ -124,7 +118,7 @@ export const useFinanceData = (userId: string | null) => {
       if (!error && data && data.length > 0) {
         setTransactions(prev => prev.map(t => t.id === id ? data[0] : t));
       }
-    } catch (err) { console.error('Erro ao alternar status de pagamento:', err); }
+    } catch (err) { console.error('Erro ao alternar status:', err); }
   }, [userId]);
 
   const addCard = async (card: Omit<CreditCard, 'id'>) => {
@@ -151,28 +145,16 @@ export const useFinanceData = (userId: string | null) => {
     if (!error) setCategories(newCats);
   };
 
-  const addCategory = (type: 'income' | 'expense', name: string) => {
-    const newCats = { ...categories, [type]: [...new Set([...categories[type], name])] };
+  const addCategory = (type: 'income' | 'expense' | 'payers', name: string) => {
+    const target = type === 'payers' ? 'payers' : type;
+    const newCats = { ...categories, [target]: [...new Set([...categories[target as keyof UserCategories], name])] };
     persistCategories(newCats);
   };
 
-  const deleteCategory = (type: 'income' | 'expense', name: string) => {
-    const newCats = { ...categories, [type]: categories[type].filter(cat => cat !== name) };
+  const deleteCategory = (type: 'income' | 'expense' | 'payers', name: string) => {
+    const target = type === 'payers' ? 'payers' : type;
+    const newCats = { ...categories, [target]: (categories[target as keyof UserCategories] as string[]).filter(cat => cat !== name) };
     persistCategories(newCats);
-  };
-
-  const getSummary = (): Summary => {
-    return transactions.reduce((acc, t) => {
-      const amt = Number(t.amount);
-      if (t.type === 'income') {
-        acc.income += amt;
-        acc.balance += amt;
-      } else {
-        acc.expenses += amt;
-        acc.balance -= amt;
-      }
-      return acc;
-    }, { balance: 0, income: 0, expenses: 0 });
   };
 
   return {
@@ -180,7 +162,6 @@ export const useFinanceData = (userId: string | null) => {
     addTransaction, updateTransaction, deleteTransaction, togglePaid,
     addCard, deleteCard,
     addCategory, deleteCategory,
-    summary: getSummary(),
     loading
   };
 };
