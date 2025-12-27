@@ -44,4 +44,5 @@ export interface Summary {
 export interface UserCategories {
   expense: string[];
   income: string[];
+  payers: string[]; // Nova lista de pagantes cadastrados
 }
