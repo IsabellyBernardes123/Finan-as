@@ -46,7 +46,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
         if (statusFilter === 'paid' && !t.is_paid) return false;
         if (statusFilter === 'pending' && t.is_paid) return false;
         
-        if (selectedPayer === 'individual') return !t.is_split;
+        if (selectedPayer === 'individual') return true;
         if (selectedPayer !== 'all') return t.is_split && t.split_details?.partnerName === selectedPayer;
         
         return true;
@@ -54,7 +54,13 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     const stats = filtered.reduce((acc, t) => {
-      const amt = Number(t.amount);
+      let amt = Number(t.amount);
+      if (selectedPayer === 'individual' && t.is_split && t.split_details) {
+        amt = Number(t.split_details.userPart);
+      } else if (selectedPayer !== 'all' && t.is_split && t.split_details) {
+        amt = Number(t.split_details.partnerPart);
+      }
+
       if (t.type === 'income') {
         acc.income += amt;
         acc.balance += amt;
@@ -85,13 +91,20 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
     const headers = ["Data", "Descrição", "Categoria", "Pagamento", "Tipo", "Valor", "Status"];
     const rows = filteredTransactions.map(t => {
       const card = cards.find(c => c.id === t.card_id);
+      let val = t.amount;
+      if (selectedPayer === 'individual' && t.is_split && t.split_details) {
+        val = t.split_details.userPart;
+      } else if (selectedPayer !== 'all' && t.is_split && t.split_details) {
+        val = t.split_details.partnerPart;
+      }
+
       return [
         new Date(t.date).toLocaleDateString('pt-BR'),
         t.description.replace(/;/g, ','),
         t.category,
         card ? card.name : 'Dinheiro/Pix',
         t.type === 'income' ? 'Entrada' : 'Saída',
-        t.amount.toString().replace('.', ','),
+        val.toString().replace('.', ','),
         t.is_paid ? 'Pago' : 'Pendente'
       ];
     });
@@ -113,7 +126,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
     <div className="space-y-4 md:space-y-6 pb-20 md:pb-0">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 print:mb-8 print:border-b print:pb-6">
         <div className="bg-white p-5 md:p-7 rounded-xl shadow-sm border border-slate-50 flex flex-col justify-center print:border-none print:p-0">
-          <p className="text-slate-400 text-[9px] font-bold uppercase tracking-[0.1em] mb-1">PATRIMÔNIO LÍQUIDO</p>
+          <p className="text-slate-400 text-[9px] font-bold uppercase tracking-[0.1em] mb-1">SALDO</p>
           <h3 className="text-xl md:text-3xl font-bold text-slate-900">{formatCurrency(summary.balance)}</h3>
         </div>
         <div className="bg-white p-5 md:p-7 rounded-xl shadow-sm border border-slate-50 flex flex-col justify-center print:border-none print:p-0">
@@ -238,6 +251,14 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
             <tbody className="divide-y divide-slate-50">
               {filteredTransactions.map((t) => {
                 const card = cards.find(c => c.id === t.card_id);
+                // Calcula o valor proporcional para exibição
+                let displayVal = t.amount;
+                if (selectedPayer === 'individual' && t.is_split && t.split_details) {
+                  displayVal = t.split_details.userPart;
+                } else if (selectedPayer !== 'all' && t.is_split && t.split_details) {
+                  displayVal = t.split_details.partnerPart;
+                }
+
                 return (
                   <tr key={t.id} className={`hover:bg-slate-50/40 transition-colors ${!t.is_paid ? 'bg-amber-50/5' : ''}`}>
                     <td className="py-6 px-4 text-center">
@@ -271,7 +292,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
                        </span>
                     </td>
                     <td className={`py-6 px-4 text-right font-bold text-sm whitespace-nowrap ${t.type === 'income' ? 'text-teal-600' : 'text-rose-500'} ${!t.is_paid ? 'opacity-50' : ''}`}>
-                      {formatCurrency(t.amount)}
+                      {formatCurrency(displayVal)}
                     </td>
                   </tr>
                 );

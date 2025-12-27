@@ -13,7 +13,7 @@ const SummaryCards: React.FC<SummaryCardsProps> = ({ summary }) => {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4 mb-6">
       <div className="bg-white p-5 md:p-6 rounded-xl shadow-sm border border-slate-100 transition-all">
-        <p className="text-slate-400 text-[9px] md:text-[10px] font-bold uppercase tracking-widest mb-1.5">Patrimônio Líquido</p>
+        <p className="text-slate-400 text-[9px] md:text-[10px] font-bold uppercase tracking-widest mb-1.5">Saldo</p>
         <h3 className={`text-xl md:text-2xl font-bold truncate ${summary.balance >= 0 ? 'text-slate-900' : 'text-rose-600'}`}>
           {formatCurrency(summary.balance)}
         </h3>
