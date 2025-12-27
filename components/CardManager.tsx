@@ -61,16 +61,17 @@ const CardManager: React.FC<CardManagerProps> = ({ cards, transactions, onAdd, o
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
       const stats = cardTrans.reduce((acc, t) => {
-        acc.total += Number(t.amount);
+        const amt = Number(t.amount);
+        acc.total += amt;
         if (t.is_split && t.split_details) {
           acc.userPart += Number(t.split_details.userPart);
-          acc.partnerPart += Number(t.split_details.partnerPart);
-          acc.partnerName = t.split_details.partnerName;
+          const pName = t.split_details.partnerName || 'Outros';
+          acc.others[pName] = (acc.others[pName] || 0) + Number(t.split_details.partnerPart);
         } else {
-          acc.userPart += Number(t.amount);
+          acc.userPart += amt;
         }
         return acc;
-      }, { total: 0, userPart: 0, partnerPart: 0, partnerName: 'Parceiro' });
+      }, { total: 0, userPart: 0, others: {} as Record<string, number> });
 
       map.set(card.id, { transactions: cardTrans, stats });
     });
@@ -127,7 +128,7 @@ const CardManager: React.FC<CardManagerProps> = ({ cards, transactions, onAdd, o
 
       <div className="grid grid-cols-1 gap-6">
         {cards.map(card => {
-          const { transactions: cardTrans, stats } = cardDataMap.get(card.id) || { transactions: [], stats: { total: 0, userPart: 0, partnerPart: 0, partnerName: 'Parceiro' } };
+          const { transactions: cardTrans, stats } = cardDataMap.get(card.id) || { transactions: [], stats: { total: 0, userPart: 0, others: {} } };
           const percent = Math.min(100, (stats.total / card.credit_limit) * 100);
           const isExpanded = expandedCardId === card.id;
           
@@ -190,15 +191,19 @@ const CardManager: React.FC<CardManagerProps> = ({ cards, transactions, onAdd, o
                 <div className="bg-white border border-slate-100 rounded-xl shadow-inner p-4 md:p-6 animate-in slide-in-from-top-4 duration-300 space-y-6">
                   <div className="flex justify-between items-center border-b border-slate-50 pb-4">
                     <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Gastos do Período</h4>
-                    <div className="flex gap-6">
-                      <div className="text-right">
+                    <div className="flex flex-wrap justify-end gap-x-6 gap-y-2">
+                      <div className="text-right min-w-[80px]">
                         <p className="text-[8px] font-bold text-slate-400 uppercase mb-0.5">Sua Parte</p>
-                        <p className="text-xs font-bold text-slate-900">{formatCurrency(stats.userPart)}</p>
+                        {/* Fix: Cast stats.userPart to number to satisfy formatCurrency type requirement */}
+                        <p className="text-xs font-bold text-slate-900">{formatCurrency(stats.userPart as number)}</p>
                       </div>
-                      <div className="text-right">
-                        <p className="text-[8px] font-bold text-indigo-400 uppercase mb-0.5">Parte {stats.partnerName}</p>
-                        <p className="text-xs font-bold text-indigo-600">{formatCurrency(stats.partnerPart)}</p>
-                      </div>
+                      {Object.entries(stats.others).map(([name, value]) => (
+                        <div key={name} className="text-right min-w-[80px]">
+                          <p className="text-[8px] font-bold text-indigo-400 uppercase mb-0.5">Parte {name}</p>
+                          {/* Fix: Cast value to number to satisfy formatCurrency type requirement */}
+                          <p className="text-xs font-bold text-indigo-600">{formatCurrency(value as number)}</p>
+                        </div>
+                      ))}
                     </div>
                   </div>
 
@@ -217,7 +222,9 @@ const CardManager: React.FC<CardManagerProps> = ({ cards, transactions, onAdd, o
                         <div className="text-right shrink-0">
                           <p className="text-xs font-bold text-slate-900">{formatCurrency(t.amount)}</p>
                           {t.is_split && t.split_details && (
-                            <p className="text-[8px] font-bold text-indigo-500 uppercase">Dividido: {formatCurrency(t.split_details.partnerPart)}</p>
+                            <p className="text-[8px] font-bold text-indigo-500 uppercase">
+                              {t.split_details.partnerName}: {formatCurrency(t.split_details.partnerPart)}
+                            </p>
                           )}
                         </div>
                       </div>

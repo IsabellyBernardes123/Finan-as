@@ -31,7 +31,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
   const [isFixedValue, setIsFixedValue] = useState(false);
   const [isSplit, setIsSplit] = useState(false);
   const [partnerPart, setPartnerPart] = useState('');
-  const [partnerName, setPartnerName] = useState('Isa');
+  const [partnerName, setPartnerName] = useState(categories.payers?.[0] || 'Isa');
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -53,13 +53,14 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
       setAmount('');
       setDate(new Date().toISOString().split('T')[0]);
       setType(initialType);
-      setCategory(initialType === 'expense' ? 'Cartão' : categories[initialType][0] || '');
+      // Ajuste: Não forçar categoria "Cartão", usar a primeira disponível ou "Outros"
+      setCategory(categories[initialType][0] || 'Outros');
       setSelectedCardId('');
       setInstallments(1);
       setIsFixedValue(false);
       setIsSplit(false);
       setPartnerPart('');
-      setPartnerName('Isa');
+      setPartnerName(categories.payers?.[0] || 'Isa');
     }
   }, [editingTransaction, initialType, categories]);
 
@@ -73,12 +74,10 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
       const inputValue = parseFloat(amount);
       const getSafeISO = (dateStr: string) => {
         const d = new Date(dateStr + 'T12:00:00');
-        if (isNaN(d.getTime())) throw new Error("Data inválida");
         return d.toISOString();
       };
 
       if (editingTransaction && onUpdate) {
-        console.log('Iniciando atualização...');
         const splitInfo: SplitDetails | undefined = isSplit ? {
           userPart: inputValue - (parseFloat(partnerPart) || 0),
           partnerPart: parseFloat(partnerPart) || 0,
@@ -89,7 +88,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
           description,
           amount: inputValue,
           type,
-          category,
+          category, // Agora respeita a categoria selecionada independentemente do cartão
           date: getSafeISO(date),
           card_id: selectedCardId || null,
           is_split: isSplit,
@@ -99,19 +98,14 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
         
         if (res) {
           setSuccess(true);
-          setTimeout(() => {
-            setSuccess(false);
-            setLoading(false);
-            if (onCancel) onCancel();
-          }, 800);
+          setTimeout(() => { if (onCancel) onCancel(); }, 800);
         } else {
           setLoading(false);
-          alert('Não foi possível salvar as alterações. Verifique sua conexão ou tente novamente.');
+          alert('Erro ao atualizar lançamento.');
         }
         return;
       }
 
-      // Lógica de Adição (Parcelamento/Recorrência)
       const numInstallments = Math.max(1, installments);
       const amountPerInstallment = isFixedValue ? inputValue : (inputValue / numInstallments);
       const pPartTotal = isSplit ? parseFloat(partnerPart) || inputValue / 2 : 0;
@@ -136,7 +130,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
           description: labelPrefix + description + installmentLabel,
           amount: amountPerInstallment,
           type,
-          category: selectedCardId ? 'Cartão' : category || 'Outros',
+          category: category || 'Outros', // Mantém a categoria selecionada
           date: targetDate.toISOString(),
           card_id: selectedCardId || null,
           is_split: isSplit,
@@ -148,24 +142,18 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
 
       if (allSuccess) {
         setSuccess(true);
-        setTimeout(() => {
-          setSuccess(false);
-          setLoading(false);
-          if (onCancel) onCancel();
-        }, 1000);
+        setTimeout(() => { if (onCancel) onCancel(); }, 1000);
       } else {
         setLoading(false);
-        alert('Ocorreu um erro ao cadastrar um ou mais lançamentos.');
+        alert('Erro ao cadastrar lançamentos.');
       }
-    } catch (err: any) {
-      console.error('Erro crítico no formulário:', err);
+    } catch (err) {
       setLoading(false);
-      alert('Erro inesperado: ' + (err.message || 'Falha ao processar dados'));
     }
   };
 
   return (
-    <div className="bg-white p-6 md:p-8 rounded-xl shadow-2xl border border-slate-100 w-full max-w-lg mx-auto animate-in fade-in zoom-in duration-300 overflow-y-auto max-h-[95vh] mb-12 md:mb-0">
+    <div className="bg-white p-6 md:p-8 rounded-xl shadow-2xl border border-slate-100 w-full max-w-lg mx-auto animate-in fade-in zoom-in duration-300 overflow-y-auto max-h-[95vh]">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-bold text-slate-900">{editingTransaction ? 'Editar Lançamento' : 'Novo Lançamento'}</h2>
         {onCancel && (
@@ -182,7 +170,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
               <button
                 key={t}
                 type="button"
-                onClick={() => { setType(t); setCategory(t === 'expense' ? 'Cartão' : categories[t][0]); }}
+                onClick={() => { setType(t); setCategory(categories[t][0] || 'Outros'); }}
                 className={`flex-1 py-2 rounded-md text-[10px] font-bold transition-all ${type === t ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'}`}
               >
                 {t === 'expense' ? 'DESPESA' : 'RECEITA'}
@@ -193,64 +181,41 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
 
         <div className="space-y-4">
           <div>
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Descrição</label>
-            <input type="text" value={description} onChange={e => setDescription(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border-2 border-transparent focus:border-indigo-100 rounded-lg outline-none text-sm font-medium text-slate-900 placeholder:text-slate-300" placeholder="Ex: Aluguel ou Compra de Mercado" required />
+            <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Descrição</label>
+            <input type="text" value={description} onChange={e => setDescription(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border-2 border-transparent focus:border-indigo-100 rounded-lg outline-none text-sm font-medium text-slate-900" placeholder="Ex: Mercado" required />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Valor Total</label>
-              <input type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border-2 border-transparent focus:border-indigo-100 rounded-lg outline-none text-sm font-bold text-slate-900 placeholder:text-slate-300" placeholder="0,00" required />
+              <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Valor Total</label>
+              <input type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border-2 border-transparent focus:border-indigo-100 rounded-lg outline-none text-sm font-bold text-slate-900" placeholder="0,00" required />
             </div>
             <div>
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Data Base / Vencimento</label>
+              <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Data</label>
               <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border-2 border-transparent focus:border-indigo-100 rounded-lg outline-none text-sm font-bold text-slate-900" required />
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Categoria</label>
+              <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Categoria</label>
               <select value={category} onChange={e => setCategory(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border-2 border-transparent focus:border-indigo-100 rounded-lg outline-none text-sm font-medium text-slate-900">
                 {categories[type].map(cat => <option key={cat} value={cat}>{cat}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Cartão (Opcional)</label>
+              <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Cartão (Opcional)</label>
               <select value={selectedCardId} onChange={e => setSelectedCardId(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border-2 border-transparent focus:border-indigo-100 rounded-lg outline-none text-sm font-medium text-slate-900">
-                <option value="">Nenhum (Dinheiro/Pix)</option>
+                <option value="">Dinheiro/Pix</option>
                 {cards.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
           </div>
 
-          {!editingTransaction && (
-            <div className="p-4 bg-slate-50 rounded-lg border border-slate-100">
-              <div className="flex items-center justify-between mb-3">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Número de Meses</label>
-                <div className="flex items-center gap-2">
-                  <span className={`text-[9px] font-bold uppercase transition-colors ${!isFixedValue ? 'text-indigo-600' : 'text-slate-300'}`}>Dividir</span>
-                  <button 
-                    type="button" 
-                    onClick={() => setIsFixedValue(!isFixedValue)}
-                    className={`w-8 h-4 rounded-full relative transition-colors ${isFixedValue ? 'bg-indigo-600' : 'bg-slate-300'}`}
-                  >
-                    <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${isFixedValue ? 'left-4.5' : 'left-0.5'}`}></div>
-                  </button>
-                  <span className={`text-[9px] font-bold uppercase transition-colors ${isFixedValue ? 'text-indigo-600' : 'text-slate-300'}`}>Provisionar</span>
-                </div>
-              </div>
-              <input type="number" min="1" max="60" value={installments} onChange={e => setInstallments(parseInt(e.target.value) || 1)} className="w-full px-4 py-2 bg-white border border-slate-100 rounded outline-none text-sm font-bold text-slate-900" />
-            </div>
-          )}
-
           {type === 'expense' && (
             <div className="p-5 bg-indigo-50/50 rounded-xl border border-indigo-100">
               <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
-                  <span className="text-[10px] font-bold text-indigo-900 uppercase tracking-widest">Dividir Gasto</span>
-                </div>
+                <span className="text-[10px] font-bold text-indigo-900 uppercase tracking-widest">Dividir Gasto</span>
                 <button type="button" onClick={() => setIsSplit(!isSplit)} className={`w-10 h-5 rounded-full transition-colors relative ${isSplit ? 'bg-indigo-600' : 'bg-slate-200'}`}>
                   <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${isSplit ? 'left-6' : 'left-1'}`}></div>
                 </button>
@@ -260,11 +225,17 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
                 <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="text-[10px] font-bold text-indigo-400 uppercase mb-1 block">Nome do Pagante</label>
-                      <input type="text" value={partnerName} onChange={e => setPartnerName(e.target.value)} className="w-full px-3 py-2 bg-white rounded border border-indigo-100 text-xs font-semibold text-slate-900" />
+                      <label className="text-[10px] font-bold text-indigo-400 uppercase mb-1 block">Pagante</label>
+                      <select 
+                        value={partnerName} 
+                        onChange={e => setPartnerName(e.target.value)} 
+                        className="w-full px-3 py-2 bg-white rounded border border-indigo-100 text-xs font-semibold text-slate-900"
+                      >
+                        {categories.payers?.map(p => <option key={p} value={p}>{p}</option>)}
+                      </select>
                     </div>
                     <div>
-                      <label className="text-[10px] font-bold text-indigo-400 uppercase mb-1 block">Parte do Pagante</label>
+                      <label className="text-[10px] font-bold text-indigo-400 uppercase mb-1 block">Parte dele(a)</label>
                       <input type="number" value={partnerPart} onChange={e => setPartnerPart(e.target.value)} placeholder="0,00" className="w-full px-3 py-2 bg-white rounded border border-indigo-100 text-xs font-bold text-slate-900" />
                     </div>
                   </div>
@@ -281,7 +252,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
             success ? 'bg-teal-500 shadow-teal-100' : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-100 disabled:opacity-50'
           }`}
         >
-          {loading ? 'Salvando...' : (success ? '✓ Salvo com Sucesso' : (editingTransaction ? 'Salvar Alterações' : 'Confirmar Lançamento'))}
+          {loading ? 'Salvando...' : (success ? '✓ Sucesso' : (editingTransaction ? 'Salvar Alterações' : 'Confirmar'))}
         </button>
       </form>
     </div>
