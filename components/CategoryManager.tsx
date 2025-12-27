@@ -22,7 +22,7 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({ categories, onAdd, on
 
   return (
     <div className="max-w-2xl space-y-6">
-      <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm">
+      <div className="bg-white p-8 rounded-xl border border-slate-100 shadow-sm">
         <div className="flex justify-between items-start mb-6">
           <div>
             <h3 className="text-lg font-bold text-slate-900 tracking-tight">Suas Categorias</h3>
@@ -33,12 +33,12 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({ categories, onAdd, on
           </div>
         </div>
         
-        <div className="flex gap-2 p-1.5 bg-slate-50 rounded-2xl mb-8 border border-slate-100">
+        <div className="flex gap-2 p-1.5 bg-slate-50 rounded-lg mb-8 border border-slate-100">
           {(['expense', 'income'] as const).map((t) => (
             <button
               key={t}
               onClick={() => setActiveType(t)}
-              className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
+              className={`flex-1 py-2 rounded text-xs font-bold transition-all ${
                 activeType === t ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400'
               }`}
             >
@@ -53,11 +53,11 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({ categories, onAdd, on
             value={newCat}
             onChange={(e) => setNewCat(e.target.value)}
             placeholder="Ex: Assinaturas, Aluguel..."
-            className="flex-1 px-4 py-3 bg-slate-50 border-transparent border-2 rounded-2xl text-sm outline-none focus:bg-white focus:border-indigo-100 transition-all font-medium text-slate-900 placeholder:text-slate-300"
+            className="flex-1 px-4 py-3 bg-slate-50 border-transparent border-2 rounded-lg text-sm outline-none focus:bg-white focus:border-indigo-100 transition-all font-medium text-slate-900 placeholder:text-slate-300"
           />
           <button 
             type="submit"
-            className="bg-indigo-600 text-white px-6 py-3 rounded-2xl text-xs font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
+            className="bg-indigo-600 text-white px-6 py-3 rounded-lg text-xs font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
           >
             Adicionar
           </button>
@@ -65,7 +65,7 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({ categories, onAdd, on
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {categories[activeType].map((cat) => (
-            <div key={cat} className="flex items-center justify-between px-4 py-3 rounded-2xl bg-slate-50/50 hover:bg-slate-50 border border-transparent hover:border-indigo-50 group transition-all">
+            <div key={cat} className="flex items-center justify-between px-4 py-3 rounded-lg bg-slate-50/50 hover:bg-slate-50 border border-transparent hover:border-indigo-50 group transition-all">
               <span className="text-xs font-semibold text-slate-700">{cat}</span>
               <button 
                 onClick={() => onDelete(activeType, cat)}

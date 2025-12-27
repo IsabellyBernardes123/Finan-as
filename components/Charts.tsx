@@ -27,7 +27,7 @@ const Charts: React.FC<ChartsProps> = ({ transactions }) => {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-      <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 h-80">
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 h-80">
         <h3 className="text-sm font-bold mb-4 text-slate-800 tracking-tight">Gastos por Categoria</h3>
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
@@ -47,13 +47,13 @@ const Charts: React.FC<ChartsProps> = ({ transactions }) => {
             </Pie>
             <Tooltip 
               formatter={(value: number) => `R$ ${value.toFixed(2)}`}
-              contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '12px' }}
+              contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '12px' }}
             />
           </PieChart>
         </ResponsiveContainer>
       </div>
 
-      <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 h-80">
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 h-80">
         <h3 className="text-sm font-bold mb-4 text-slate-800 tracking-tight">Fluxo de Caixa Recente</h3>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={transactions.slice(0, 6).reverse()}>
@@ -62,9 +62,9 @@ const Charts: React.FC<ChartsProps> = ({ transactions }) => {
             <YAxis hide />
             <Tooltip 
               formatter={(value: number) => `R$ ${value.toFixed(2)}`}
-              contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '12px' }}
+              contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '12px' }}
             />
-            <Bar dataKey="amount" radius={[6, 6, 6, 6]} barSize={32}>
+            <Bar dataKey="amount" radius={[4, 4, 4, 4]} barSize={32}>
               {transactions.slice(0, 6).reverse().map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.type === 'income' ? COLORS.income : COLORS.expense} />
               ))}
