@@ -12,6 +12,40 @@
             font-family: 'Inter', sans-serif;
             background-color: #f9fafb;
         }
+        /* Estilos de Impressão */
+        @media print {
+            aside, nav, .no-print, button, input, select, .sidebar-mobile, header {
+                display: none !important;
+            }
+            body {
+                background-color: white !important;
+            }
+            main {
+                margin: 0 !important;
+                padding: 20px !important;
+                width: 100% !important;
+            }
+            .bg-white {
+                border: none !important;
+                box-shadow: none !important;
+                padding: 0 !important;
+            }
+            .rounded-[24px], .rounded-[32px] {
+                border-radius: 0 !important;
+            }
+            table {
+                width: 100% !important;
+                border-collapse: collapse !important;
+            }
+            th, td {
+                border-bottom: 1px solid #e2e8f0 !important;
+                padding: 10px 5px !important;
+                font-size: 10pt !important;
+            }
+            h2 {
+                margin-top: 0 !important;
+            }
+        }
     </style>
 <script type="importmap">
 {
