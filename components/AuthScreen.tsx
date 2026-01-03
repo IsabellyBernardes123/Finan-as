@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { User } from '../types';
+import Logo from './Logo';
 
 interface AuthScreenProps {
   onSelectUser: (user: User) => void;
@@ -69,9 +70,9 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onSelectUser }) => {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 animate-in fade-in duration-500">
       <div className="w-full max-w-xl text-center mb-10">
-        <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center text-white text-2xl font-bold mx-auto mb-6 shadow-xl shadow-indigo-100">FP</div>
-        <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-2">FinancePro Cloud</h1>
-        <p className="text-slate-400 font-medium">Sincronize suas finanças em todos os seus dispositivos</p>
+        <Logo size="lg" className="justify-center mb-8" />
+        <h1 className="text-2xl font-bold text-slate-900 tracking-tight mb-2">Seja bem-vindo de volta!</h1>
+        <p className="text-slate-400 font-medium text-sm">Organize suas finanças com inteligência e simplicidade.</p>
       </div>
 
       <div className="bg-white p-10 rounded-[40px] border border-slate-100 shadow-2xl w-full max-w-md animate-in zoom-in-95 duration-300">

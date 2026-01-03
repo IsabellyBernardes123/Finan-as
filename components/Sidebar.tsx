@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { User } from '../types';
+import Logo from './Logo';
 
 export type ViewType = 'dashboard' | 'add-expense' | 'add-income' | 'reports' | 'categories' | 'cards' | 'payers' | 'payer-reports';
 
@@ -37,10 +38,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, currentUse
     <>
       <aside className="w-64 bg-white border-r border-slate-100 flex flex-col h-screen sticky top-0 hidden md:flex">
         <div className="p-8">
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <span className="w-6 h-6 bg-indigo-600 rounded flex items-center justify-center text-white text-[10px]">FP</span>
-            FinancePro
-          </h1>
+          <Logo size="sm" />
         </div>
 
         <nav className="flex-1 px-4 space-y-1">
