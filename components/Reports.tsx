@@ -2,6 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { Transaction, UserCategories, Summary, CreditCard } from '../types';
 import { supabase } from '../services/supabaseClient';
+import { getCategoryIcon } from '../utils/icons';
 
 interface ReportsProps {
   transactions: Transaction[];
@@ -51,7 +52,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
         
         return true;
       })
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
     const stats = filtered.reduce((acc, t) => {
       let amt = Number(t.amount);
@@ -88,7 +89,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
   };
 
   const exportToExcel = () => {
-    const headers = ["Data", "Descrição", "Categoria", "Pagamento", "Tipo", "Valor", "Status"];
+    const headers = ["Vencimento", "Pagamento", "Descrição", "Categoria", "Tipo", "Valor", "Status"];
     const rows = filteredTransactions.map(t => {
       const card = cards.find(c => c.id === t.card_id);
       let val = t.amount;
@@ -100,9 +101,9 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
 
       return [
         new Date(t.date).toLocaleDateString('pt-BR'),
+        t.payment_date ? new Date(t.payment_date).toLocaleDateString('pt-BR') : '-',
         t.description.replace(/;/g, ','),
         t.category,
-        card ? card.name : 'Dinheiro/Pix',
         t.type === 'income' ? 'Entrada' : 'Saída',
         val.toString().replace('.', ','),
         t.is_paid ? 'Pago' : 'Pendente'
@@ -125,51 +126,35 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
   return (
     <div className="space-y-4 md:space-y-6 pb-20 md:pb-0">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 print:mb-8 print:border-b print:pb-6">
-        <div className="bg-white p-5 md:p-7 rounded-xl shadow-sm border border-slate-50 flex flex-col justify-center print:border-none print:p-0">
+        <div className="bg-white p-4 md:p-7 rounded-lg shadow-sm border border-slate-50 flex flex-col justify-center">
           <p className="text-slate-400 text-[9px] font-bold uppercase tracking-[0.1em] mb-1">SALDO</p>
           <h3 className="text-xl md:text-3xl font-bold text-slate-900">{formatCurrency(summary.balance)}</h3>
         </div>
-        <div className="bg-white p-5 md:p-7 rounded-xl shadow-sm border border-slate-50 flex flex-col justify-center print:border-none print:p-0">
+        <div className="bg-white p-4 md:p-7 rounded-lg shadow-sm border border-slate-50 flex flex-col justify-center">
           <p className="text-slate-400 text-[9px] font-bold uppercase tracking-[0.1em] mb-1">ENTRADAS</p>
           <h3 className="text-xl md:text-3xl font-bold text-teal-600">{formatCurrency(summary.income)}</h3>
         </div>
-        <div className="bg-white p-5 md:p-7 rounded-xl shadow-sm border border-slate-50 flex flex-col justify-center print:border-none print:p-0">
+        <div className="bg-white p-4 md:p-7 rounded-lg shadow-sm border border-slate-50 flex flex-col justify-center">
           <p className="text-slate-400 text-[9px] font-bold uppercase tracking-[0.1em] mb-1">SAÍDAS</p>
           <h3 className="text-xl md:text-3xl font-bold text-rose-500">{formatCurrency(summary.expenses)}</h3>
         </div>
       </div>
 
-      <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-100 no-print">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 items-end">
+      <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-100 no-print">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 items-end">
           <div className="col-span-1 sm:col-span-2 grid grid-cols-2 gap-2">
             <div>
-              <label className="text-[9px] font-bold text-slate-400 uppercase mb-2 block">Início</label>
-              <input 
-                type="date" 
-                value={startDate} 
-                onChange={(e) => setStartDate(e.target.value)}
-                style={{ colorScheme: 'light' }}
-                className="w-full bg-slate-50 border-none rounded-lg px-3 py-3 text-xs font-bold text-indigo-600 outline-none"
-              />
+              <label className="text-[9px] font-bold text-slate-400 uppercase mb-1.5 block">Início</label>
+              <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full bg-slate-50 border-none rounded-md px-3 py-2 text-xs font-bold text-indigo-600 outline-none" />
             </div>
             <div>
-              <label className="text-[9px] font-bold text-slate-400 uppercase mb-2 block">Fim</label>
-              <input 
-                type="date" 
-                value={endDate} 
-                onChange={(e) => setEndDate(e.target.value)}
-                style={{ colorScheme: 'light' }}
-                className="w-full bg-slate-50 border-none rounded-lg px-3 py-3 text-xs font-bold text-indigo-600 outline-none"
-              />
+              <label className="text-[9px] font-bold text-slate-400 uppercase mb-1.5 block">Fim</label>
+              <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full bg-slate-50 border-none rounded-md px-3 py-2 text-xs font-bold text-indigo-600 outline-none" />
             </div>
           </div>
           <div>
-            <label className="text-[9px] font-bold text-slate-400 uppercase mb-2 block">Categoria</label>
-            <select 
-              value={selectedCategory} 
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full bg-slate-50 border-none rounded-lg px-4 py-3 text-xs font-bold text-slate-700 outline-none"
-            >
+            <label className="text-[9px] font-bold text-slate-400 uppercase mb-1.5 block">Categoria</label>
+            <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="w-full bg-slate-50 border-none rounded-md px-4 py-2 text-xs font-bold text-slate-700 outline-none">
               <option value="all">Todas</option>
               {[...categories.expense, ...categories.income].sort().map(cat => (
                 <option key={cat} value={cat}>{cat}</option>
@@ -177,134 +162,120 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
             </select>
           </div>
           <div>
-            <label className="text-[9px] font-bold text-slate-400 uppercase mb-2 block">Pagante</label>
-            <select 
-              value={selectedPayer} 
-              onChange={(e) => setSelectedPayer(e.target.value)}
-              className="w-full bg-slate-50 border-none rounded-lg px-4 py-3 text-xs font-bold text-slate-700 outline-none"
-            >
+            <label className="text-[9px] font-bold text-slate-400 uppercase mb-1.5 block">Pagante</label>
+            <select value={selectedPayer} onChange={(e) => setSelectedPayer(e.target.value)} className="w-full bg-slate-50 border-none rounded-md px-4 py-2 text-xs font-bold text-slate-700 outline-none">
               <option value="all">Todos</option>
               <option value="individual">Apenas Eu</option>
               {categories.payers?.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
           </div>
-          <div>
-            <label className="text-[9px] font-bold text-slate-400 uppercase mb-2 block">Status</label>
-            <select 
-              value={statusFilter} 
-              onChange={(e) => setStatusFilter(e.target.value as any)}
-              className="w-full bg-slate-50 border-none rounded-lg px-4 py-3 text-xs font-bold text-slate-700 outline-none"
-            >
-              <option value="all">Todos</option>
-              <option value="paid">Pagos</option>
-              <option value="pending">Pendentes</option>
-            </select>
-          </div>
-          <button 
-            onClick={resetFilters}
-            className="w-full py-3 text-[9px] font-bold text-slate-400 uppercase hover:text-indigo-600 transition-colors text-center"
-          >
-            Resetar
-          </button>
+          <button onClick={resetFilters} className="w-full py-2 text-[9px] font-bold text-slate-400 uppercase hover:text-indigo-600 transition-colors">Resetar</button>
         </div>
       </div>
 
-      <div className="bg-white p-4 md:p-10 rounded-xl shadow-sm border border-slate-100 overflow-hidden print:p-0 print:border-none print:shadow-none">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8 print:mb-4">
+      <div className="bg-white p-4 md:p-8 rounded-lg shadow-sm border border-slate-100 overflow-hidden">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
           <div>
-            <h2 className="text-lg md:text-2xl font-bold text-slate-900 tracking-tight">Registros do Período</h2>
-            <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">
-              Filtrado de {new Date(startDate).toLocaleDateString('pt-BR')} até {new Date(endDate).toLocaleDateString('pt-BR')}
-            </p>
+            <h2 className="text-lg md:text-2xl font-bold text-slate-900 tracking-tight">Extrato Detalhado</h2>
+            <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Filtro aplicado pelo período selecionado</p>
           </div>
-          
           <div className="flex gap-2 no-print w-full md:w-auto">
-            <button 
-              onClick={exportToExcel}
-              className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-emerald-50 text-emerald-700 px-4 py-3 rounded-lg text-[9px] font-bold uppercase tracking-widest hover:bg-emerald-100 transition-all border border-emerald-100"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
-              Exportar
-            </button>
-            <button 
-              onClick={() => window.print()}
-              className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-slate-900 text-white px-4 py-3 rounded-lg text-[9px] font-bold uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg active:scale-95"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-              PDF
-            </button>
+            <button onClick={exportToExcel} className="flex-1 md:flex-none bg-emerald-50 text-emerald-700 px-4 py-2 rounded-md text-[9px] font-bold uppercase transition-all border border-emerald-100">Exportar</button>
+            <button onClick={() => window.print()} className="flex-1 md:flex-none bg-slate-900 text-white px-4 py-2 rounded-md text-[9px] font-bold uppercase transition-all shadow-lg">PDF</button>
           </div>
         </div>
 
-        <div className="overflow-x-auto scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0 print:overflow-visible print:mx-0 print:px-0">
-          <table className="w-full text-left min-w-[900px] print:min-w-0">
+        {/* View para Desktop */}
+        <div className="hidden md:block overflow-x-auto">
+          <table className="w-full text-left">
             <thead>
               <tr className="text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b-2 border-slate-50 bg-slate-50/20">
-                <th className="py-5 px-4 text-center w-24">Status</th>
-                <th className="py-5 px-4">Data</th>
-                <th className="py-5 px-4">Descrição</th>
-                <th className="py-5 px-4">Categoria</th>
-                <th className="py-5 px-4">Pagamento</th>
-                <th className="py-5 px-4 text-right">Valor</th>
+                <th className="py-4 px-4 text-center w-24">Status</th>
+                <th className="py-4 px-4">Datas</th>
+                <th className="py-4 px-4">Descrição / Categoria</th>
+                <th className="py-4 px-4">Pagamento</th>
+                <th className="py-4 px-4 text-right">Valor</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
               {filteredTransactions.map((t) => {
                 const card = cards.find(c => c.id === t.card_id);
-                // Calcula o valor proporcional para exibição
                 let displayVal = t.amount;
-                if (selectedPayer === 'individual' && t.is_split && t.split_details) {
-                  displayVal = t.split_details.userPart;
-                } else if (selectedPayer !== 'all' && t.is_split && t.split_details) {
-                  displayVal = t.split_details.partnerPart;
-                }
+                if (selectedPayer === 'individual' && t.is_split && t.split_details) { displayVal = t.split_details.userPart; }
+                else if (selectedPayer !== 'all' && t.is_split && t.split_details) { displayVal = t.split_details.partnerPart; }
 
                 return (
-                  <tr key={t.id} className={`hover:bg-slate-50/40 transition-colors ${!t.is_paid ? 'bg-amber-50/5' : ''}`}>
-                    <td className="py-6 px-4 text-center">
-                      <span className={`inline-block px-2 py-1 rounded-[4px] text-[8px] font-black uppercase tracking-widest border ${
-                        t.is_paid 
-                          ? 'bg-teal-50 border-teal-100 text-teal-600' 
-                          : 'bg-amber-50 border-amber-100 text-amber-600'
-                      }`}>
+                  <tr key={t.id} className="hover:bg-slate-50/40 transition-colors">
+                    <td className="py-4 px-4 text-center">
+                      <span className={`inline-block px-2 py-1 rounded-[4px] text-[8px] font-black uppercase tracking-widest border ${t.is_paid ? 'bg-teal-50 border-teal-100 text-teal-600' : 'bg-amber-50 border-amber-100 text-amber-600'}`}>
                         {t.is_paid ? 'Pago' : 'Pendente'}
                       </span>
                     </td>
-                    <td className="py-6 px-4 text-[11px] font-bold text-slate-500 whitespace-nowrap">
-                      {new Date(t.date).toLocaleDateString('pt-BR')}
+                    <td className="py-4 px-4">
+                      <p className="text-[11px] font-bold text-slate-500 uppercase tracking-tighter">Venc: {new Date(t.date).toLocaleDateString('pt-BR')}</p>
+                      {t.payment_date && <p className="text-[9px] font-black text-teal-600 uppercase tracking-tighter">Pago: {new Date(t.payment_date).toLocaleDateString('pt-BR')}</p>}
                     </td>
-                    <td className="py-6 px-4">
-                      <p className={`text-sm font-semibold text-slate-900 truncate max-w-[200px] md:max-w-none print:max-w-none ${!t.is_paid ? 'text-slate-400 italic' : ''}`}>
-                        {t.description}
-                      </p>
-                      {t.is_split && t.split_details && (
-                        <span className="text-[8px] text-indigo-400 font-bold uppercase block mt-0.5">Participação: {t.split_details.partnerName}</span>
-                      )}
+                    <td className="py-4 px-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-7 h-7 rounded-md bg-slate-50 flex items-center justify-center shrink-0">{getCategoryIcon(t.category)}</div>
+                        <div>
+                          <p className="text-xs font-bold text-slate-900 leading-tight">{t.description}</p>
+                          <span className="text-[9px] text-indigo-400 font-bold uppercase tracking-tighter">{t.category}</span>
+                        </div>
+                      </div>
                     </td>
-                    <td className="py-6 px-4 whitespace-nowrap">
-                      <span className="px-3 py-1 bg-slate-50 border border-slate-100 rounded text-[9px] font-bold text-indigo-600 uppercase tracking-tighter print:border-none print:p-0">
-                        {t.category}
-                      </span>
-                    </td>
-                    <td className="py-6 px-4 whitespace-nowrap">
-                       <span className="text-[10px] font-bold text-slate-500 uppercase">
-                         {card ? card.name : 'Dinheiro/Pix'}
-                       </span>
-                    </td>
-                    <td className={`py-6 px-4 text-right font-bold text-sm whitespace-nowrap ${t.type === 'income' ? 'text-teal-600' : 'text-rose-500'} ${!t.is_paid ? 'opacity-50' : ''}`}>
+                    <td className="py-4 px-4 text-[10px] font-bold text-slate-500 uppercase">{card ? card.name : 'Dinheiro/Pix'}</td>
+                    <td className={`py-4 px-4 text-right font-bold text-sm ${t.type === 'income' ? 'text-teal-600' : 'text-rose-500'} ${!t.is_paid ? 'opacity-50' : ''}`}>
                       {formatCurrency(displayVal)}
                     </td>
                   </tr>
                 );
               })}
-              {filteredTransactions.length === 0 && (
-                <tr>
-                   <td colSpan={6} className="py-20 text-center text-slate-300 text-[10px] font-bold uppercase italic tracking-widest">Nenhum registro no período</td>
-                </tr>
-              )}
             </tbody>
           </table>
         </div>
+
+        {/* View para Mobile */}
+        <div className="md:hidden space-y-4">
+          {filteredTransactions.map((t) => {
+            const card = cards.find(c => c.id === t.card_id);
+            let displayVal = t.amount;
+            if (selectedPayer === 'individual' && t.is_split && t.split_details) { displayVal = t.split_details.userPart; }
+            else if (selectedPayer !== 'all' && t.is_split && t.split_details) { displayVal = t.split_details.partnerPart; }
+
+            return (
+              <div key={t.id} className="flex flex-col gap-2 p-3 bg-slate-50/50 rounded-lg border border-transparent hover:border-slate-100 transition-all">
+                <div className="flex justify-between items-center">
+                   <div className="flex flex-col">
+                     <span className="text-[8px] font-bold text-slate-400 uppercase">Venc: {new Date(t.date).toLocaleDateString('pt-BR')}</span>
+                     {t.payment_date && <span className="text-[8px] font-black text-teal-600 uppercase">Pago: {new Date(t.payment_date).toLocaleDateString('pt-BR')}</span>}
+                   </div>
+                   <span className={`px-2 py-0.5 rounded text-[7px] font-black uppercase tracking-widest border ${t.is_paid ? 'bg-teal-50 border-teal-100 text-teal-600' : 'bg-amber-50 border-amber-100 text-amber-600'}`}>
+                     {t.is_paid ? 'Pago' : 'Pendente'}
+                   </span>
+                </div>
+                <div className="flex justify-between items-end">
+                   <div className="flex items-center gap-3">
+                      <div className="w-7 h-7 rounded-md bg-white border border-slate-100 flex items-center justify-center shrink-0 print:hidden">
+                        {getCategoryIcon(t.category)}
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-slate-800 leading-tight mb-0.5">{t.description}</p>
+                        <p className="text-[8px] text-indigo-500 font-black uppercase tracking-tighter">{t.category} • {card ? card.name : 'Dinheiro'}</p>
+                      </div>
+                   </div>
+                   <p className={`text-sm font-black ${t.type === 'income' ? 'text-teal-600' : 'text-rose-500'} ${!t.is_paid ? 'opacity-50' : ''}`}>
+                     {formatCurrency(displayVal)}
+                   </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {filteredTransactions.length === 0 && (
+          <div className="py-16 text-center text-slate-300 text-[10px] font-bold uppercase tracking-widest italic">Nenhum registro no período</div>
+        )}
       </div>
     </div>
   );

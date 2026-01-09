@@ -3,7 +3,7 @@ import React from 'react';
 import { User } from '../types';
 import Logo from './Logo';
 
-export type ViewType = 'dashboard' | 'add-expense' | 'add-income' | 'reports' | 'categories' | 'cards' | 'payers' | 'payer-reports';
+export type ViewType = 'dashboard' | 'add-expense' | 'add-income' | 'reports' | 'categories' | 'cards' | 'payers' | 'payer-reports' | 'data-management';
 
 interface SidebarProps {
   currentView: ViewType;
@@ -29,10 +29,14 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, currentUse
     { id: 'reports', label: 'Extrato', shortLabel: 'Extr.', icon: (
       <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
     )},
-    { id: 'payer-reports', label: 'Extrato Pagantes', shortLabel: 'Pags.', icon: (
+    { id: 'payer-reports', label: 'Acerto de Contas', shortLabel: 'Acerto', icon: (
       <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
     ), color: 'text-amber-500' },
   ];
+
+  const btnClasses = (id: string) => `w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${
+    currentView === id ? 'bg-indigo-50 text-indigo-600' : 'text-slate-500 hover:bg-slate-50'
+  }`;
 
   return (
     <>
@@ -46,55 +50,53 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, currentUse
             <button
               key={item.id}
               onClick={() => onViewChange(item.id as ViewType)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
-                currentView === item.id 
-                  ? 'bg-indigo-50 text-indigo-600' 
-                  : 'text-slate-500 hover:bg-slate-50'
-              }`}
+              className={btnClasses(item.id)}
             >
               <span className={currentView === item.id ? 'text-indigo-600' : item.color || 'text-slate-400'}>
                 {item.icon}
               </span>
-              <span className="font-semibold text-xs">{item.label}</span>
+              <span className="font-semibold text-[11px] uppercase tracking-wide">{item.label}</span>
             </button>
           ))}
           <div className="pt-4 pb-2">
-            <p className="px-3 text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Configurações</p>
+            <p className="px-3 text-[8px] font-black text-slate-400 uppercase tracking-widest mb-2">Configurações</p>
             <button
               onClick={() => onViewChange('categories')}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
-                currentView === 'categories' ? 'bg-indigo-50 text-indigo-600' : 'text-slate-500 hover:bg-slate-50'
-              }`}
+              className={btnClasses('categories')}
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-400"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></svg>
-              <span className="font-semibold text-xs">Categorias</span>
+              <span className="font-semibold text-[11px] uppercase tracking-wide">Categorias</span>
             </button>
             <button
               onClick={() => onViewChange('payers')}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all mt-1 ${
-                currentView === 'payers' ? 'bg-indigo-50 text-indigo-600' : 'text-slate-500 hover:bg-slate-50'
-              }`}
+              className={btnClasses('payers')}
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-400"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-              <span className="font-semibold text-xs">Gerenciar Pagantes</span>
+              <span className="font-semibold text-[11px] uppercase tracking-wide">Pagantes</span>
+            </button>
+            <button
+              onClick={() => onViewChange('data-management')}
+              className={btnClasses('data-management')}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-400"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+              <span className="font-semibold text-[11px] uppercase tracking-wide">Exportar/Importar</span>
             </button>
           </div>
         </nav>
 
         <div className="px-6 mb-8 mt-auto">
           <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
-             <div className={`w-8 h-8 ${currentUser?.avatarColor || 'bg-slate-300'} rounded flex items-center justify-center text-white text-[10px] font-bold`}>
+             <div className={`w-8 h-8 ${currentUser?.avatarColor || 'bg-slate-300'} rounded-md flex items-center justify-center text-white text-[10px] font-bold`}>
                {currentUser?.name.charAt(0).toUpperCase()}
              </div>
              <div className="flex-1 overflow-hidden">
-               <p className="text-xs font-bold text-slate-900 truncate">{currentUser?.name}</p>
-               <button onClick={onLogout} className="text-[9px] font-bold text-indigo-500 hover:text-indigo-700">Sair</button>
+               <p className="text-[10px] font-bold text-slate-900 truncate uppercase tracking-tighter">{currentUser?.name}</p>
+               <button onClick={onLogout} className="text-[8px] font-black text-indigo-500 hover:text-indigo-700 uppercase">Sair</button>
              </div>
           </div>
         </div>
       </aside>
 
-      {/* Bottom Nav Mobile */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-100 flex items-center justify-around px-2 py-3 md:hidden z-40 shadow-lg">
         {menuItems.map((item) => (
           <button
@@ -103,7 +105,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, currentUse
             className={`flex flex-col items-center gap-1 flex-1 ${currentView === item.id ? 'text-indigo-600' : 'text-slate-400'}`}
           >
             {item.icon}
-            <span className="text-[8px] font-black uppercase tracking-tighter">{item.shortLabel}</span>
+            <span className="text-[7px] font-black uppercase tracking-tighter">{item.shortLabel}</span>
           </button>
         ))}
       </nav>
