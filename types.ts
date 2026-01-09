@@ -45,5 +45,7 @@ export interface Summary {
 export interface UserCategories {
   expense: string[];
   income: string[];
-  payers: string[]; // Nova lista de pagantes cadastrados
+  payers: string[];
+  colors?: Record<string, string>; // Mapeia "Nome da Categoria" -> "#HexColor"
+  icons?: Record<string, string>;  // Mapeia "Nome da Categoria" -> "iconKey"
 }

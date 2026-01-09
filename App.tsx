@@ -16,7 +16,7 @@ import DataManagement from './components/DataManagement';
 import AuthScreen from './components/AuthScreen';
 import Logo from './components/Logo';
 import { TransactionType, User, Summary, Transaction } from './types';
-import { getCategoryIcon } from './utils/icons';
+import { getCategoryIcon, getCategoryStyles } from './utils/icons';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -26,17 +26,17 @@ const App: React.FC = () => {
   const { 
     transactions, cards, categories, 
     addTransaction, updateTransaction, deleteTransaction, togglePaid,
-    addCard, deleteCard, addCategory, deleteCategory, loading: dataLoading
+    addCard, deleteCard, addCategory, updateCategory, deleteCategory, loading: dataLoading
   } = useFinanceData(currentUser?.id || null);
   
   const [currentView, setCurrentView] = useState<ViewType>('dashboard');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
-  
-  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
-  const [transactionToPay, setTransactionToPay] = useState<{id: string, status: boolean} | null>(null);
-  const [paymentDateInput, setPaymentDateInput] = useState(new Date().toISOString().split('T')[0]);
 
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [pendingPaymentId, setPendingPaymentId] = useState<string | null>(null);
+  const [selectedPaymentDate, setSelectedPaymentDate] = useState(new Date().toISOString().split('T')[0]);
+  
   const getInitialDates = () => {
     const now = new Date();
     const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
@@ -47,6 +47,7 @@ const App: React.FC = () => {
   const { firstDay: initStart, lastDay: initEnd } = getInitialDates();
   const [startDate, setStartDate] = useState(initStart);
   const [endDate, setEndDate] = useState(initEnd);
+  const [selectedType, setSelectedType] = useState<'all' | 'expense' | 'income'>('all');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedPayer, setSelectedPayer] = useState('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'paid' | 'pending'>('all');
@@ -81,7 +82,9 @@ const App: React.FC = () => {
         const defaultCategories = {
           expense: ['Alimentação', 'Moradia', 'Transporte', 'Lazer', 'Saúde', 'Cartão', 'Outros'],
           income: ['Salário', 'Freelance', 'Investimentos', 'Presentes', 'Outros'],
-          payers: [userName.split(' ')[0] || 'Eu']
+          payers: [userName.split(' ')[0] || 'Eu'],
+          colors: {},
+          icons: {}
         };
 
         const { error: insertError } = await supabase.from('profiles').upsert({
@@ -114,15 +117,37 @@ const App: React.FC = () => {
   
   const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
+  const handleTogglePaidRequest = (id: string, isPaid: boolean) => {
+    if (!isPaid) {
+      setPendingPaymentId(id);
+      setSelectedPaymentDate(new Date().toISOString().split('T')[0]);
+      setIsPaymentModalOpen(true);
+    } else {
+      if (window.confirm("Deseja marcar este lançamento como Pendente?")) {
+        togglePaid(id, true, null);
+      }
+    }
+  };
+
+  const confirmPayment = () => {
+    if (pendingPaymentId) {
+      const paymentISO = new Date(selectedPaymentDate + 'T12:00:00').toISOString();
+      togglePaid(pendingPaymentId, false, paymentISO);
+      setIsPaymentModalOpen(false);
+      setPendingPaymentId(null);
+    }
+  };
+
   const dashboardData = useMemo(() => {
     const filtered = transactions.filter(t => {
       const tDate = t.date.split('T')[0];
       const matchesDate = tDate >= startDate && tDate <= endDate;
+      const matchesType = selectedType === 'all' || t.type === selectedType;
       const matchesCategory = selectedCategory === 'all' || t.category === selectedCategory;
       let matchesPayer = true;
       if (selectedPayer === 'individual') matchesPayer = true;
       else if (selectedPayer !== 'all') matchesPayer = t.is_split && t.split_details?.partnerName === selectedPayer;
-      return matchesDate && matchesCategory && matchesPayer;
+      return matchesDate && matchesType && matchesCategory && matchesPayer;
     });
 
     const summary: Summary = filtered.reduce((acc, t) => {
@@ -165,7 +190,62 @@ const App: React.FC = () => {
     }, {});
 
     return { filteredTransactions: filtered, summary, cardSummaries: Object.values(groupedByCard) };
-  }, [transactions, startDate, endDate, selectedCategory, selectedPayer, cards]);
+  }, [transactions, startDate, endDate, selectedType, selectedCategory, selectedPayer, cards]);
+
+  const renderFilterBar = () => {
+    let catsToShow: string[] = [];
+    if (selectedType === 'all') {
+      catsToShow = Array.from(new Set([...categories.expense, ...categories.income])).sort();
+    } else if (selectedType === 'expense') {
+      catsToShow = [...categories.expense].sort();
+    } else {
+      catsToShow = [...categories.income].sort();
+    }
+
+    return (
+      <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 items-end">
+          <div className="col-span-1 sm:col-span-2 grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-[9px] font-bold text-slate-400 uppercase mb-1.5 block">Início</label>
+              <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full bg-slate-50 border-none rounded-md px-3 py-2 text-xs font-bold text-indigo-600 outline-none" />
+            </div>
+            <div>
+              <label className="text-[9px] font-bold text-slate-400 uppercase mb-1.5 block">Fim</label>
+              <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full bg-slate-50 border-none rounded-md px-3 py-2 text-xs font-bold text-indigo-600 outline-none" />
+            </div>
+          </div>
+          <div>
+            <label className="text-[9px] font-bold text-slate-400 uppercase mb-1.5 block">Tipo</label>
+            <select value={selectedType} onChange={(e) => { setSelectedType(e.target.value as any); setSelectedCategory('all'); }} className="w-full bg-slate-50 border-none rounded-md px-4 py-2 text-xs font-bold text-slate-700 outline-none">
+              <option value="all">Todos</option>
+              <option value="expense">Saídas</option>
+              <option value="income">Entradas</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-[9px] font-bold text-slate-400 uppercase mb-1.5 block">Categoria</label>
+            <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="w-full bg-slate-50 border-none rounded-md px-4 py-2 text-xs font-bold text-slate-700 outline-none">
+              <option value="all">Todas</option>
+              {catsToShow.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+            </select>
+          </div>
+          <button 
+            onClick={() => { 
+              const { firstDay, lastDay } = getInitialDates();
+              setStartDate(firstDay); 
+              setEndDate(lastDay); 
+              setSelectedType('all');
+              setSelectedCategory('all'); 
+            }} 
+            className="w-full py-2 text-[10px] font-bold text-slate-400 uppercase hover:text-indigo-600 transition-colors"
+          >
+            Limpar Filtros
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   const renderTransactionManagement = (type: TransactionType) => {
     const filtered = transactions
@@ -181,71 +261,165 @@ const App: React.FC = () => {
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
     return (
-      <div className="space-y-4 max-w-7xl mx-auto pb-24 md:pb-0">
-        <div className="bg-white p-4 rounded-lg border border-slate-100 shadow-sm">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
-            <div className="col-span-1 sm:col-span-2 grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-[9px] font-bold text-slate-400 uppercase mb-1.5 block">Início</label>
-                <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full bg-slate-50 border-none rounded-md px-3 py-2 text-xs font-bold text-indigo-600 outline-none" />
-              </div>
-              <div>
-                <label className="text-[9px] font-bold text-slate-400 uppercase mb-1.5 block">Fim</label>
-                <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full bg-slate-50 border-none rounded-md px-3 py-2 text-xs font-bold text-indigo-600 outline-none" />
-              </div>
-            </div>
-            <div>
-              <label className="text-[9px] font-bold text-slate-400 uppercase mb-1.5 block">Categoria</label>
-              <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="w-full bg-slate-50 border-none rounded-md px-4 py-2 text-xs font-bold text-slate-700 outline-none">
-                <option value="all">Todas</option>
-                {categories[type].map(cat => <option key={cat} value={cat}>{cat}</option>)}
-              </select>
-            </div>
-            <button onClick={() => { setStartDate(initStart); setEndDate(initEnd); setSelectedCategory('all'); }} className="w-full py-2 text-[10px] font-bold text-slate-400 uppercase hover:text-indigo-600 transition-colors">Limpar Filtros</button>
-          </div>
-        </div>
+      <div className="space-y-4 max-w-full mx-auto pb-24 md:pb-0">
+        {renderFilterBar()}
 
-        <div className="hidden md:block bg-white rounded-lg border border-slate-100 shadow-sm overflow-hidden">
+        {/* Visualização para Desktop */}
+        <div className="hidden md:block bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
           <table className="w-full text-left">
             <thead>
               <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-50 bg-slate-50/30">
-                <th className="py-4 px-6">Status</th>
+                <th className="py-4 px-6 text-center">Status</th>
                 <th className="py-4 px-6">Vencimento</th>
                 <th className="py-4 px-6">Descrição / Categoria</th>
+                <th className="py-4 px-6">Pagamento</th>
+                <th className="py-4 px-6">Divisão</th>
                 <th className="py-4 px-6 text-right">Valor</th>
                 <th className="py-4 px-6 w-24 text-center">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {filtered.map((t) => (
-                <tr key={t.id} className="hover:bg-slate-50/50 transition-colors group">
-                  <td className="py-4 px-6">
-                    <button onClick={() => togglePaid(t.id, t.is_paid, null)} className={`w-5 h-5 rounded-md flex items-center justify-center border-2 mx-auto transition-all ${t.is_paid ? 'bg-teal-500 border-teal-500 text-white' : 'bg-white border-slate-200 text-slate-200'}`}>
-                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4"><path d="M20 6 9 17l-5-5"/></svg>
-                    </button>
-                  </td>
-                  <td className="py-4 px-6 text-[11px] text-slate-400 font-bold">{new Date(t.date).toLocaleDateString('pt-BR')}</td>
-                  <td className="py-4 px-6">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-md bg-slate-50 text-slate-500 flex items-center justify-center">{getCategoryIcon(t.category)}</div>
-                      <div>
-                        <p className="text-xs font-bold text-slate-900 leading-tight">{t.description}</p>
-                        <span className="text-[9px] text-indigo-500 font-black uppercase tracking-tighter">{t.category}</span>
+              {filtered.map((t) => {
+                const card = t.card_id ? cards.find(c => c.id === t.card_id) : null;
+                const styles = getCategoryStyles(t.category, categories);
+                const inlineStyles = styles.isCustom ? {
+                  backgroundColor: `${styles.customColor}15`,
+                  color: styles.customColor,
+                  borderColor: `${styles.customColor}30`
+                } : {};
+
+                return (
+                  <tr key={t.id} className="hover:bg-slate-50/50 transition-colors group">
+                    <td className="py-4 px-6">
+                      <button onClick={() => handleTogglePaidRequest(t.id, t.is_paid)} className={`w-6 h-6 rounded-lg flex items-center justify-center border-2 mx-auto transition-all ${t.is_paid ? 'bg-teal-500 border-teal-500 text-white' : 'bg-white border-slate-200 text-slate-200 hover:border-teal-300'}`}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4"><path d="M20 6 9 17l-5-5"/></svg>
+                      </button>
+                    </td>
+                    <td className="py-4 px-6">
+                      <p className="text-[11px] text-slate-900 font-black whitespace-nowrap">{new Date(t.date).toLocaleDateString('pt-BR')}</p>
+                      {t.is_paid && t.payment_date && (
+                        <p className="text-[9px] text-teal-500 font-bold uppercase tracking-tighter whitespace-nowrap">Pago: {new Date(t.payment_date).toLocaleDateString('pt-BR')}</p>
+                      )}
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="flex items-center gap-3">
+                        <div 
+                          className={`w-9 h-9 rounded-xl flex items-center justify-center border ${!styles.isCustom ? `${styles.bg} ${styles.text} ${styles.border}` : ''}`}
+                          style={inlineStyles}
+                        >
+                          {getCategoryIcon(t.category, 18, categories)}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-black text-slate-900 leading-tight truncate">{t.description}</p>
+                          <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">{t.category}</span>
+                        </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className={`py-4 px-6 text-right text-xs font-black ${t.type === 'income' ? 'text-teal-600' : 'text-rose-500'}`}>{formatCurrency(t.amount)}</td>
-                  <td className="py-4 px-6">
-                    <div className="flex justify-center gap-1">
-                      <button onClick={() => { setEditingTransaction(t); setIsFormOpen(true); }} className="p-1.5 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-all"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></button>
-                      <button onClick={() => deleteTransaction(t.id)} className="p-1.5 text-rose-300 hover:text-rose-500 hover:bg-rose-50 rounded-md transition-all"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/></svg></button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="py-4 px-6">
+                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-tight">{card ? card.name : 'DINHEIRO/PIX'}</span>
+                    </td>
+                    <td className="py-4 px-6">
+                      {t.is_split && t.split_details ? (
+                        <div className="space-y-0.5">
+                           <p className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">VOCÊ: <span className="text-slate-900">{formatCurrency(t.split_details.userPart)}</span></p>
+                           <p className="text-[8px] font-black text-indigo-400 uppercase tracking-tighter">{t.split_details.partnerName.toUpperCase()}: <span className="text-indigo-600">{formatCurrency(t.split_details.partnerPart)}</span></p>
+                        </div>
+                      ) : (
+                        <span className="text-[9px] font-black text-slate-300 uppercase italic">SOLO</span>
+                      )}
+                    </td>
+                    <td className={`py-4 px-6 text-right text-sm font-black ${t.type === 'income' ? 'text-teal-600' : 'text-rose-500'}`}>{formatCurrency(t.amount)}</td>
+                    <td className="py-4 px-6">
+                      <div className="flex justify-center gap-1">
+                        <button onClick={() => { setEditingTransaction(t); setIsFormOpen(true); }} className="p-2 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></button>
+                        <button onClick={() => deleteTransaction(t.id)} className="p-2 text-rose-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/></svg></button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
+
+        {/* Visualização para Mobile - Sutil e Discreta */}
+        <div className="md:hidden space-y-4">
+          {filtered.map((t) => {
+            const card = t.card_id ? cards.find(c => c.id === t.card_id) : null;
+            const styles = getCategoryStyles(t.category, categories);
+            const inlineStyles = styles.isCustom ? {
+              backgroundColor: `${styles.customColor}15`,
+              color: styles.customColor,
+              borderColor: `${styles.customColor}30`
+            } : {};
+
+            return (
+              <div key={t.id} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-3 relative overflow-hidden">
+                <div className="flex justify-between items-start">
+                  <div className="flex flex-col">
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Venc: {new Date(t.date).toLocaleDateString('pt-BR')}</span>
+                    {t.is_paid && t.payment_date && (
+                      <span className="text-[9px] font-black text-teal-600 uppercase tracking-widest mt-0.5">Pago: {new Date(t.payment_date).toLocaleDateString('pt-BR')}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2 py-0.5 rounded-lg text-[7px] font-black uppercase tracking-widest border transition-all ${t.is_paid ? 'bg-teal-50 border-teal-100 text-teal-600' : 'bg-amber-50 border-amber-100 text-amber-600'}`}>
+                      {t.is_paid ? 'Pago' : 'Pendente'}
+                    </span>
+                    <button onClick={() => handleTogglePaidRequest(t.id, t.is_paid)} className={`w-5 h-5 rounded-md flex items-center justify-center border transition-all ${t.is_paid ? 'bg-teal-500 border-teal-500 text-white' : 'bg-white border-slate-200 text-slate-300'}`}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4"><path d="M20 6 9 17l-5-5"/></svg>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div 
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center border shrink-0 ${!styles.isCustom ? `${styles.bg} ${styles.text} ${styles.border}` : ''}`}
+                    style={inlineStyles}
+                  >
+                    {getCategoryIcon(t.category, 18, categories)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-black text-slate-900 leading-tight truncate">{t.description}</p>
+                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
+                      {t.category}
+                      <span className="mx-1 opacity-40">•</span>
+                      {card ? card.name : 'Dinheiro/Pix'}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className={`text-sm font-black ${t.type === 'income' ? 'text-teal-600' : 'text-rose-500'}`}>{formatCurrency(t.amount)}</p>
+                  </div>
+                </div>
+
+                {t.is_split && t.split_details && (
+                  <div className="p-2 bg-indigo-50/20 rounded-lg flex justify-between items-center">
+                    <span className="text-[7px] font-black text-indigo-400 uppercase tracking-widest">Rateio:</span>
+                    <div className="flex gap-2">
+                      <span className="text-[7px] font-black text-slate-400">EU: {formatCurrency(t.split_details.userPart)}</span>
+                      <span className="text-[7px] font-black text-indigo-600">{t.split_details.partnerName.toUpperCase()}: {formatCurrency(t.split_details.partnerPart)}</span>
+                    </div>
+                  </div>
+                )}
+
+                <div className="pt-2 border-t border-slate-50 flex justify-end gap-3">
+                  <button onClick={() => { setEditingTransaction(t); setIsFormOpen(true); }} className="text-indigo-400 hover:text-indigo-600 flex items-center gap-1.5 transition-all py-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                    <span className="text-[8px] font-black uppercase tracking-widest">Editar</span>
+                  </button>
+                  <button onClick={() => deleteTransaction(t.id)} className="text-rose-300 hover:text-rose-500 flex items-center gap-1.5 transition-all py-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/></svg>
+                    <span className="text-[8px] font-black uppercase tracking-widest">Excluir</span>
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {filtered.length === 0 && (
+          <div className="py-20 text-center text-slate-300 font-black text-[10px] uppercase tracking-widest">Nenhum lançamento encontrado</div>
+        )}
       </div>
     );
   };
@@ -279,18 +453,20 @@ const App: React.FC = () => {
               <p className="text-xs font-medium text-slate-400 mt-1">Sua situação financeira hoje</p>
             </div>
 
+            {renderFilterBar()}
+
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               <div className="lg:col-span-8 space-y-6">
                 <SummaryCards summary={dashboardData.summary} />
                 <AIInsights transactions={dashboardData.filteredTransactions} />
-                <Charts transactions={dashboardData.filteredTransactions} />
+                <Charts transactions={dashboardData.filteredTransactions} categories={categories} />
               </div>
               <div className="lg:col-span-4">
-                <div className="bg-white p-5 rounded-lg shadow-sm border border-slate-100 h-full">
+                <div className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 h-full">
                   <h2 className="text-[10px] font-black text-slate-900 tracking-tight uppercase mb-6 border-b border-slate-50 pb-3">Extrato por Pagante</h2>
                   <div className="space-y-3">
                     {dashboardData.cardSummaries.map((card: any) => (
-                      <div key={card.cardId || 'cash'} className="p-4 bg-slate-50/40 rounded-lg border border-slate-100">
+                      <div key={card.cardId || 'cash'} className="p-4 bg-slate-50/40 rounded-2xl border border-slate-100">
                         <div className="flex justify-between items-start mb-4">
                           <h4 className="font-black text-[10px] text-slate-900 uppercase tracking-widest">{card.description}</h4>
                         </div>
@@ -314,7 +490,7 @@ const App: React.FC = () => {
       case 'cards': return <CardManager cards={cards} transactions={transactions} onAdd={addCard} onDelete={deleteCard} />;
       case 'reports': return <Reports transactions={transactions} categories={categories} />;
       case 'payer-reports': return <PayerReports transactions={transactions} categories={categories} />;
-      case 'categories': return <CategoryManager categories={categories} onAdd={addCategory} onDelete={deleteCategory} />;
+      case 'categories': return <CategoryManager categories={categories} onAdd={addCategory} onUpdate={updateCategory} onDelete={deleteCategory} />;
       case 'data-management': return <DataManagement userId={currentUser!.id} transactions={transactions} cards={cards} categories={categories} onRefresh={() => window.location.reload()} />;
     }
   };
@@ -343,14 +519,52 @@ const App: React.FC = () => {
         </header>
 
         {isFormOpen && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] p-4 flex justify-center items-center">
-            <div className="w-full max-w-4xl">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] overflow-y-auto p-4 md:flex md:justify-center md:items-start py-8 md:py-16">
+            <div className="w-full max-w-4xl mx-auto">
               <TransactionForm onAdd={addTransaction} onUpdate={updateTransaction} editingTransaction={editingTransaction} categories={categories} cards={cards} onCancel={() => setIsFormOpen(false)} initialType={currentView === 'add-income' ? 'income' : 'expense'} />
             </div>
           </div>
         )}
 
-        <div className="w-full max-w-4xl mx-auto">
+        {isPaymentModalOpen && (
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] p-4 flex justify-center items-center">
+             <div className="bg-white p-6 rounded-[24px] shadow-2xl border border-slate-100 w-full max-w-sm animate-in zoom-in-95 duration-200">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="w-10 h-10 bg-teal-50 text-teal-600 rounded-xl flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z"/><path d="m9 12 2 2 4-4"/></svg>
+                  </div>
+                  <h3 className="text-lg font-black text-slate-900 tracking-tight">Confirmar Pagamento</h3>
+                </div>
+                
+                <div className="mb-6">
+                   <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1.5 ml-1">Quando foi pago?</label>
+                   <input 
+                     type="date" 
+                     value={selectedPaymentDate} 
+                     onChange={(e) => setSelectedPaymentDate(e.target.value)} 
+                     className="w-full h-12 px-4 bg-slate-50 border-none rounded-xl text-sm font-black text-slate-800 outline-none focus:ring-2 focus:ring-teal-100 transition-all"
+                   />
+                </div>
+
+                <div className="flex gap-3">
+                  <button 
+                    onClick={() => setIsPaymentModalOpen(false)} 
+                    className="flex-1 py-3 text-[10px] font-black uppercase text-slate-400 hover:text-slate-600 transition-all"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    onClick={confirmPayment} 
+                    className="flex-[2] py-3 bg-teal-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-teal-100 hover:bg-teal-600 active:scale-95 transition-all"
+                  >
+                    Confirmar Pagamento
+                  </button>
+                </div>
+             </div>
+          </div>
+        )}
+
+        <div className="w-full max-w-full mx-auto">
           {renderContent()}
         </div>
       </main>
