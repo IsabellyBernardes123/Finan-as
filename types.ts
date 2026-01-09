@@ -20,6 +20,7 @@ export interface Transaction {
   type: TransactionType;
   category: string;
   date: string;
+  payment_date?: string | null;
   card_id?: string;
   is_split?: boolean;
   split_details?: SplitDetails;
