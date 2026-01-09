@@ -146,7 +146,6 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onSelectUser }) => {
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 animate-in fade-in duration-500">
       <div className="w-full max-w-xl text-center mb-8">
         <Logo size="md" className="justify-center mb-6" />
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight mb-2">FinancePro</h1>
         <p className="text-slate-400 font-medium text-sm">Controle financeiro inteligente e minimalista.</p>
       </div>
 

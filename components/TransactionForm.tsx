@@ -285,7 +285,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
         </div>
 
         <div className="pt-3 md:pt-4">
-          <button type="submit" disabled={success || loading} className={`w-full py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all text-white shadow-lg active:scale-[0.98] ${success ? 'bg-teal-500' : 'bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50'}`}>
+          <button type="submit" disabled={success || loading} className={`w-full py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all text-white shadow-lg active:scale-[0.98] ${success ? 'bg-teal-500' : 'bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50'}`}>
             {loading ? 'Processando...' : (success ? '✓ Atualizado' : (editingTransaction ? 'Salvar Alterações' : 'Confirmar Lançamento'))}
           </button>
         </div>
