@@ -141,7 +141,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm border border-slate-100 no-print overflow-hidden">
+      <div className="bg-white rounded-lg shadow-sm border border-slate-100 no-print overflow-hidden filter-bar">
         {/* Mobile Toggle Button */}
         <button 
           onClick={() => setIsFiltersVisible(!isFiltersVisible)}
@@ -202,7 +202,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
       </div>
 
       <div className="bg-white p-4 md:p-8 rounded-lg shadow-sm border border-slate-100 overflow-hidden">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 print:mb-2">
           <div>
             <h2 className="text-lg md:text-2xl font-bold text-slate-900 tracking-tight">Extrato Detalhado</h2>
             <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Filtro aplicado pelo período selecionado</p>
@@ -213,18 +213,21 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
           </div>
         </div>
 
-        <div className="hidden md:block overflow-x-auto">
+        {/* Tabela Principal - Colunas Separadas */}
+        <div className="hidden md:block print:block print-table-container overflow-x-auto">
           <table className="w-full text-left">
             <thead>
-              <tr className="text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b-2 border-slate-50 bg-slate-50/20">
-                <th className="py-4 px-4 text-center w-24">Status</th>
-                <th className="py-4 px-4">Datas</th>
-                <th className="py-4 px-4">Descrição / Categoria</th>
-                <th className="py-4 px-4">Pagamento</th>
-                <th className="py-4 px-4 text-right">Valor</th>
+              <tr className="text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b-2 border-slate-50 bg-slate-50/20 print:bg-transparent print:border-slate-200">
+                <th className="py-4 px-3 text-center w-16">Status</th>
+                <th className="py-4 px-3 w-24">Vencimento</th>
+                <th className="py-4 px-3 w-24">Pagamento</th>
+                <th className="py-4 px-3 min-w-[150px]">Descrição</th>
+                <th className="py-4 px-3">Categoria</th>
+                <th className="py-4 px-3 w-28">Método</th>
+                <th className="py-4 px-3 text-right w-28">Valor</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-50">
+            <tbody className="divide-y divide-slate-50 print:divide-slate-200">
               {filteredTransactions.map((t) => {
                 const card = cards.find(c => c.id === t.card_id);
                 const style = getCategoryStyles(t.category, categories);
@@ -239,32 +242,44 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
                 else if (selectedPayer !== 'all' && t.is_split && t.split_details) { displayVal = t.split_details.partnerPart; }
 
                 return (
-                  <tr key={t.id} className="hover:bg-slate-50/40 transition-colors">
-                    <td className="py-4 px-4 text-center">
-                      <span className={`inline-block px-2 py-1 rounded-[4px] text-[8px] font-black uppercase tracking-widest border ${t.is_paid ? 'bg-teal-50 border-teal-100 text-teal-600' : 'bg-amber-50 border-amber-100 text-amber-600'}`}>
+                  <tr key={t.id} className="hover:bg-slate-50/40 transition-colors print:hover:bg-transparent">
+                    <td className="py-4 px-3 text-center">
+                      <span className={`inline-block px-2 py-1 rounded-[4px] text-[8px] font-black uppercase tracking-widest border ${t.is_paid ? 'bg-teal-50 border-teal-100 text-teal-600' : 'bg-amber-50 border-amber-100 text-amber-600'} print:border-slate-300`}>
                         {t.is_paid ? 'Pago' : 'Pendente'}
                       </span>
                     </td>
-                    <td className="py-4 px-4">
-                      <p className="text-[11px] font-bold text-slate-500 uppercase tracking-tighter">Venc: {new Date(t.date).toLocaleDateString('pt-BR')}</p>
-                      {t.payment_date && <p className="text-[9px] font-black text-teal-600 uppercase tracking-tighter">Pago: {new Date(t.payment_date).toLocaleDateString('pt-BR')}</p>}
+                    <td className="py-4 px-3">
+                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter print:text-black">
+                        {new Date(t.date).toLocaleDateString('pt-BR')}
+                      </p>
                     </td>
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-3">
+                    <td className="py-4 px-3">
+                      {t.payment_date ? (
+                        <p className="text-[10px] font-bold text-teal-600 uppercase tracking-tighter">
+                          {new Date(t.payment_date).toLocaleDateString('pt-BR')}
+                        </p>
+                      ) : (
+                        <span className="text-[8px] text-slate-200 font-bold italic">-</span>
+                      )}
+                    </td>
+                    <td className="py-4 px-3">
+                      <p className="text-[11px] font-bold text-slate-900 leading-tight print:text-black">{t.description}</p>
+                    </td>
+                    <td className="py-4 px-3">
+                      <div className="flex items-center gap-2">
                         <div 
-                          className={`w-8 h-8 rounded-xl flex items-center justify-center border shrink-0 ${!style.isCustom ? `${style.bg} ${style.text} ${style.border}` : ''}`}
+                          className={`w-6 h-6 rounded-lg flex items-center justify-center border shrink-0 print:hidden ${!style.isCustom ? `${style.bg} ${style.text} ${style.border}` : ''}`}
                           style={inlineStyles}
                         >
-                          {getCategoryIcon(t.category, 16)}
+                          {getCategoryIcon(t.category, 12)}
                         </div>
-                        <div>
-                          <p className="text-xs font-bold text-slate-900 leading-tight">{t.description}</p>
-                          <span className="text-[9px] font-bold uppercase tracking-tighter text-slate-400">{t.category}</span>
-                        </div>
+                        <span className="text-[9px] font-bold uppercase tracking-tighter text-slate-400 print:text-slate-600">{t.category}</span>
                       </div>
                     </td>
-                    <td className="py-4 px-4 text-[10px] font-bold text-slate-500 uppercase">{card ? card.name : 'Dinheiro/Pix'}</td>
-                    <td className={`py-4 px-4 text-right font-bold text-sm ${t.type === 'income' ? 'text-teal-600' : 'text-rose-500'} ${!t.is_paid ? 'opacity-50' : ''}`}>
+                    <td className="py-4 px-3 text-[10px] font-bold text-slate-500 uppercase print:text-slate-600">
+                      {card ? card.name : 'DINHEIRO/PIX'}
+                    </td>
+                    <td className={`py-4 px-3 text-right font-bold text-sm ${t.type === 'income' ? 'text-teal-600' : 'text-rose-500'} ${!t.is_paid ? 'opacity-50' : ''} print:opacity-100`}>
                       {formatCurrency(displayVal)}
                     </td>
                   </tr>
@@ -274,7 +289,8 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
           </table>
         </div>
 
-        <div className="md:hidden space-y-4">
+        {/* Blocos Mobile - Escondidos no PRINT */}
+        <div className="md:hidden print:hidden space-y-4">
           {filteredTransactions.map((t) => {
             const card = cards.find(c => c.id === t.card_id);
             const style = getCategoryStyles(t.category, categories);
@@ -302,7 +318,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
                 <div className="flex justify-between items-end">
                    <div className="flex items-center gap-3">
                       <div 
-                        className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 print:hidden ${!style.isCustom ? `${style.bg} ${style.text} ${style.border}` : ''}`}
+                        className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 ${!style.isCustom ? `${style.bg} ${style.text} ${style.border}` : ''}`}
                         style={inlineStyles}
                       >
                         {getCategoryIcon(t.category, 16)}
