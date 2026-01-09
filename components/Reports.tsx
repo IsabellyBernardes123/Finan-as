@@ -11,6 +11,7 @@ interface ReportsProps {
 
 const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
   const [cards, setCards] = useState<CreditCard[]>([]);
+  const [isFiltersVisible, setIsFiltersVisible] = useState(false);
   
   React.useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -86,12 +87,12 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
     setSelectedCategory('all');
     setSelectedPayer('all');
     setStatusFilter('all');
+    if (window.innerWidth < 1024) setIsFiltersVisible(false);
   };
 
   const exportToExcel = () => {
     const headers = ["Vencimento", "Pagamento", "Descrição", "Categoria", "Tipo", "Valor", "Status"];
     const rows = filteredTransactions.map(t => {
-      const card = cards.find(c => c.id === t.card_id);
       let val = t.amount;
       if (selectedPayer === 'individual' && t.is_split && t.split_details) {
         val = t.split_details.userPart;
@@ -140,36 +141,63 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
         </div>
       </div>
 
-      <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-100 no-print">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 items-end">
-          <div className="col-span-1 sm:col-span-2 grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-[9px] font-bold text-slate-400 uppercase mb-1.5 block">Início</label>
-              <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full bg-slate-50 border-none rounded-md px-3 py-2 text-xs font-bold text-indigo-600 outline-none" />
+      <div className="bg-white rounded-lg shadow-sm border border-slate-100 no-print overflow-hidden">
+        {/* Mobile Toggle Button */}
+        <button 
+          onClick={() => setIsFiltersVisible(!isFiltersVisible)}
+          className="w-full px-4 py-3 flex items-center justify-between lg:hidden transition-colors hover:bg-slate-50 border-b border-transparent data-[open=true]:border-slate-100"
+          data-open={isFiltersVisible}
+        >
+          <div className="flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-indigo-600">
+              <path d="M21 4H3"/><path d="M20 8H4"/><path d="M18 12H6"/><path d="M15 16H9"/><path d="M12 20H12"/>
+            </svg>
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-700">Opções de Filtro</span>
+          </div>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className={`text-slate-300 transition-transform duration-300 ${isFiltersVisible ? 'rotate-180' : ''}`}>
+            <path d="m6 9 6 6 6-6"/>
+          </svg>
+        </button>
+
+        <div className={`p-4 ${isFiltersVisible ? 'block animate-in slide-in-from-top-2 duration-300' : 'hidden lg:block'}`}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 items-end">
+            <div className="col-span-1 sm:col-span-2 grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[9px] font-bold text-slate-400 uppercase mb-1.5 block">Início</label>
+                <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full bg-slate-50 border-none rounded-md px-3 py-2 text-xs font-bold text-indigo-600 outline-none" />
+              </div>
+              <div>
+                <label className="text-[9px] font-bold text-slate-400 uppercase mb-1.5 block">Fim</label>
+                <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full bg-slate-50 border-none rounded-md px-3 py-2 text-xs font-bold text-indigo-600 outline-none" />
+              </div>
             </div>
             <div>
-              <label className="text-[9px] font-bold text-slate-400 uppercase mb-1.5 block">Fim</label>
-              <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full bg-slate-50 border-none rounded-md px-3 py-2 text-xs font-bold text-indigo-600 outline-none" />
+              <label className="text-[9px] font-bold text-slate-400 uppercase mb-1.5 block">Categoria</label>
+              <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="w-full bg-slate-50 border-none rounded-md px-4 py-2 text-xs font-bold text-slate-700 outline-none">
+                <option value="all">Todas</option>
+                {[...categories.expense, ...categories.income].sort().map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
             </div>
+            <div>
+              <label className="text-[9px] font-bold text-slate-400 uppercase mb-1.5 block">Status</label>
+              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as any)} className="w-full bg-slate-50 border-none rounded-md px-4 py-2 text-xs font-bold text-slate-700 outline-none">
+                <option value="all">Todos</option>
+                <option value="paid">Pago</option>
+                <option value="pending">Pendente</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-[9px] font-bold text-slate-400 uppercase mb-1.5 block">Pagante</label>
+              <select value={selectedPayer} onChange={(e) => setSelectedPayer(e.target.value)} className="w-full bg-slate-50 border-none rounded-md px-4 py-2 text-xs font-bold text-slate-700 outline-none">
+                <option value="all">Todos</option>
+                <option value="individual">Apenas Eu</option>
+                {categories.payers?.map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
+            <button onClick={resetFilters} className="w-full py-2 text-[9px] font-bold text-slate-400 uppercase hover:text-indigo-600 transition-colors">Resetar</button>
           </div>
-          <div>
-            <label className="text-[9px] font-bold text-slate-400 uppercase mb-1.5 block">Categoria</label>
-            <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="w-full bg-slate-50 border-none rounded-md px-4 py-2 text-xs font-bold text-slate-700 outline-none">
-              <option value="all">Todas</option>
-              {[...categories.expense, ...categories.income].sort().map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-[9px] font-bold text-slate-400 uppercase mb-1.5 block">Pagante</label>
-            <select value={selectedPayer} onChange={(e) => setSelectedPayer(e.target.value)} className="w-full bg-slate-50 border-none rounded-md px-4 py-2 text-xs font-bold text-slate-700 outline-none">
-              <option value="all">Todos</option>
-              <option value="individual">Apenas Eu</option>
-              {categories.payers?.map(p => <option key={p} value={p}>{p}</option>)}
-            </select>
-          </div>
-          <button onClick={resetFilters} className="w-full py-2 text-[9px] font-bold text-slate-400 uppercase hover:text-indigo-600 transition-colors">Resetar</button>
         </div>
       </div>
 
