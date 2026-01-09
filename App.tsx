@@ -513,7 +513,7 @@ const App: React.FC = () => {
     'dashboard': 'Visão Geral', 'cards': 'Meus Cartões', 'add-expense': 'Despesas', 'add-income': 'Receitas', 'categories': 'Categorias', 'reports': 'Extrato', 'payers': 'Pagantes', 'payer-reports': 'Acerto de Contas', 'data-management': 'Configurações Avançadas'
   };
 
-  const showNewTransactionButton = !['dashboard', 'reports', 'payer-reports', 'data-management'].includes(currentView);
+  const showNewTransactionButton = !['dashboard', 'reports', 'payer-reports', 'data-management', 'cards'].includes(currentView);
 
   return (
     <div className="flex min-h-screen bg-slate-50/50">
@@ -522,7 +522,7 @@ const App: React.FC = () => {
         <header className="mb-6 md:mb-10 flex flex-col items-center text-center">
           <h2 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight uppercase">{viewTitles[currentView]}</h2>
           {showNewTransactionButton && (
-            <button onClick={() => { setEditingTransaction(null); setIsFormOpen(true); }} className="mt-4 bg-indigo-600 text-white px-8 py-3 rounded-2xl shadow-xl hover:bg-indigo-700 transition-all font-black text-[10px] uppercase tracking-widest flex items-center gap-2 active:scale-95">
+            <button onClick={() => { setEditingTransaction(null); setIsFormOpen(true); }} className="mt-4 bg-indigo-600 text-white px-8 py-3 rounded-xl shadow-xl hover:bg-indigo-700 transition-all font-black text-[10px] uppercase tracking-widest flex items-center gap-2 active:scale-95">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4"><path d="M12 5v14M5 12h14"/></svg>
               Novo Lançamento
             </button>
