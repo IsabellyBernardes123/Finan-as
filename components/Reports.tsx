@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { Transaction, UserCategories, Summary, CreditCard } from '../types';
 import { supabase } from '../services/supabaseClient';
-import { getCategoryIcon } from '../utils/icons';
+import { getCategoryIcon, getCategoryStyles } from '../utils/icons';
 
 interface ReportsProps {
   transactions: Transaction[];
@@ -185,7 +185,6 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
           </div>
         </div>
 
-        {/* View para Desktop */}
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left">
             <thead>
@@ -200,6 +199,13 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
             <tbody className="divide-y divide-slate-50">
               {filteredTransactions.map((t) => {
                 const card = cards.find(c => c.id === t.card_id);
+                const style = getCategoryStyles(t.category, categories);
+                const inlineStyles = style.isCustom ? {
+                  backgroundColor: `${style.customColor}15`,
+                  color: style.customColor,
+                  borderColor: `${style.customColor}30`
+                } : {};
+
                 let displayVal = t.amount;
                 if (selectedPayer === 'individual' && t.is_split && t.split_details) { displayVal = t.split_details.userPart; }
                 else if (selectedPayer !== 'all' && t.is_split && t.split_details) { displayVal = t.split_details.partnerPart; }
@@ -217,10 +223,15 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
                     </td>
                     <td className="py-4 px-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-7 h-7 rounded-md bg-slate-50 flex items-center justify-center shrink-0">{getCategoryIcon(t.category)}</div>
+                        <div 
+                          className={`w-8 h-8 rounded-xl flex items-center justify-center border shrink-0 ${!style.isCustom ? `${style.bg} ${style.text} ${style.border}` : ''}`}
+                          style={inlineStyles}
+                        >
+                          {getCategoryIcon(t.category, 16)}
+                        </div>
                         <div>
                           <p className="text-xs font-bold text-slate-900 leading-tight">{t.description}</p>
-                          <span className="text-[9px] text-indigo-400 font-bold uppercase tracking-tighter">{t.category}</span>
+                          <span className="text-[9px] font-bold uppercase tracking-tighter text-slate-400">{t.category}</span>
                         </div>
                       </div>
                     </td>
@@ -235,10 +246,16 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
           </table>
         </div>
 
-        {/* View para Mobile */}
         <div className="md:hidden space-y-4">
           {filteredTransactions.map((t) => {
             const card = cards.find(c => c.id === t.card_id);
+            const style = getCategoryStyles(t.category, categories);
+            const inlineStyles = style.isCustom ? {
+              backgroundColor: `${style.customColor}15`,
+              color: style.customColor,
+              borderColor: `${style.customColor}30`
+            } : {};
+
             let displayVal = t.amount;
             if (selectedPayer === 'individual' && t.is_split && t.split_details) { displayVal = t.split_details.userPart; }
             else if (selectedPayer !== 'all' && t.is_split && t.split_details) { displayVal = t.split_details.partnerPart; }
@@ -256,12 +273,17 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
                 </div>
                 <div className="flex justify-between items-end">
                    <div className="flex items-center gap-3">
-                      <div className="w-7 h-7 rounded-md bg-white border border-slate-100 flex items-center justify-center shrink-0 print:hidden">
-                        {getCategoryIcon(t.category)}
+                      <div 
+                        className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 print:hidden ${!style.isCustom ? `${style.bg} ${style.text} ${style.border}` : ''}`}
+                        style={inlineStyles}
+                      >
+                        {getCategoryIcon(t.category, 16)}
                       </div>
                       <div>
                         <p className="text-xs font-bold text-slate-800 leading-tight mb-0.5">{t.description}</p>
-                        <p className="text-[8px] text-indigo-500 font-black uppercase tracking-tighter">{t.category} • {card ? card.name : 'Dinheiro'}</p>
+                        <p className="text-[8px] font-black uppercase tracking-tighter text-slate-400">
+                          {t.category} <span className="text-slate-400">• {card ? card.name : 'Dinheiro'}</span>
+                        </p>
                       </div>
                    </div>
                    <p className={`text-sm font-black ${t.type === 'income' ? 'text-teal-600' : 'text-rose-500'} ${!t.is_paid ? 'opacity-50' : ''}`}>
