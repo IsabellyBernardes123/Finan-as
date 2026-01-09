@@ -6,7 +6,9 @@ import { supabase } from '../services/supabaseClient';
 const DEFAULT_CATEGORIES: UserCategories = {
   expense: ['Alimentação', 'Moradia', 'Transporte', 'Lazer', 'Saúde', 'Cartão', 'Outros'],
   income: ['Salário', 'Freelance', 'Investimentos', 'Presentes', 'Outros'],
-  payers: ['Isa'] // Pagante padrão inicial
+  payers: ['Isa'],
+  colors: {},
+  icons: {}
 };
 
 export const useFinanceData = (userId: string | null) => {
@@ -28,11 +30,12 @@ export const useFinanceData = (userId: string | null) => {
 
       if (profile?.categories) {
         const cats = profile.categories as unknown as UserCategories;
-        // Garantir que a propriedade payers exista para contas antigas
         setCategories({
           ...DEFAULT_CATEGORIES,
           ...cats,
-          payers: cats.payers || DEFAULT_CATEGORIES.payers
+          payers: cats.payers || DEFAULT_CATEGORIES.payers,
+          colors: cats.colors || {},
+          icons: cats.icons || {}
         });
       }
 
@@ -110,10 +113,8 @@ export const useFinanceData = (userId: string | null) => {
     try {
       const updates: any = { is_paid: !currentStatus };
       if (!currentStatus) {
-        // Marcando como pago
         updates.payment_date = paymentDate || new Date().toISOString();
       } else {
-        // Marcando como pendente
         updates.payment_date = null;
       }
 
@@ -154,15 +155,66 @@ export const useFinanceData = (userId: string | null) => {
     if (!error) setCategories(newCats);
   };
 
-  const addCategory = (type: 'income' | 'expense' | 'payers', name: string) => {
+  const addCategory = (type: 'income' | 'expense' | 'payers', name: string, color?: string, icon?: string) => {
     const target = type === 'payers' ? 'payers' : type;
-    const newCats = { ...categories, [target]: [...new Set([...categories[target as keyof UserCategories], name])] };
+    const newColors = { ...categories.colors, [name]: color || '#64748b' };
+    const newIcons = { ...categories.icons, [name]: icon || 'other' };
+    
+    const newCats = { 
+      ...categories, 
+      [target]: [...new Set([...categories[target as keyof UserCategories] as string[], name])],
+      colors: type !== 'payers' ? newColors : categories.colors,
+      icons: type !== 'payers' ? newIcons : categories.icons
+    };
     persistCategories(newCats);
+  };
+
+  const updateCategory = async (type: 'income' | 'expense', oldName: string, newName: string, newColor: string, newIcon: string) => {
+    if (!userId) return;
+    const target = type === 'expense' ? 'expense' : 'income';
+    const newList = [...categories[target]];
+    const index = newList.indexOf(oldName);
+    
+    if (index !== -1) {
+      newList[index] = newName;
+    } else {
+      newList.push(newName);
+    }
+
+    const newColors = { ...categories.colors };
+    const newIcons = { ...categories.icons };
+
+    if (oldName !== newName) {
+      delete newColors[oldName];
+      delete newIcons[oldName];
+    }
+    
+    newColors[newName] = newColor;
+    newIcons[newName] = newIcon;
+
+    const newCats = {
+      ...categories,
+      [target]: newList,
+      colors: newColors,
+      icons: newIcons
+    };
+    
+    await persistCategories(newCats);
   };
 
   const deleteCategory = (type: 'income' | 'expense' | 'payers', name: string) => {
     const target = type === 'payers' ? 'payers' : type;
-    const newCats = { ...categories, [target]: (categories[target as keyof UserCategories] as string[]).filter(cat => cat !== name) };
+    const newColors = { ...categories.colors };
+    const newIcons = { ...categories.icons };
+    delete newColors[name];
+    delete newIcons[name];
+    
+    const newCats = { 
+      ...categories, 
+      [target]: (categories[target as keyof UserCategories] as string[]).filter(cat => cat !== name),
+      colors: type !== 'payers' ? newColors : categories.colors,
+      icons: type !== 'payers' ? newIcons : categories.icons
+    };
     persistCategories(newCats);
   };
 
@@ -170,7 +222,7 @@ export const useFinanceData = (userId: string | null) => {
     transactions, cards, categories,
     addTransaction, updateTransaction, deleteTransaction, togglePaid,
     addCard, deleteCard,
-    addCategory, deleteCategory,
+    addCategory, updateCategory, deleteCategory,
     loading
   };
 };
