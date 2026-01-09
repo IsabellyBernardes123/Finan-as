@@ -81,7 +81,7 @@ export const useFinanceData = (userId: string | null) => {
   const updateTransaction = useCallback(async (id: string, updates: Partial<Transaction>) => {
     if (!userId || !id) return false;
     try {
-      const allowedKeys = ['description', 'amount', 'type', 'category', 'date', 'card_id', 'is_split', 'split_details', 'is_paid'];
+      const allowedKeys = ['description', 'amount', 'type', 'category', 'date', 'payment_date', 'card_id', 'is_split', 'split_details', 'is_paid'];
       const payload = Object.fromEntries(
         Object.entries(updates).filter(([key]) => allowedKeys.includes(key))
       );
@@ -105,12 +105,21 @@ export const useFinanceData = (userId: string | null) => {
     }
   }, [userId]);
 
-  const togglePaid = useCallback(async (id: string, currentStatus: boolean) => {
+  const togglePaid = useCallback(async (id: string, currentStatus: boolean, paymentDate?: string | null) => {
     if (!userId) return;
     try {
+      const updates: any = { is_paid: !currentStatus };
+      if (!currentStatus) {
+        // Marcando como pago
+        updates.payment_date = paymentDate || new Date().toISOString();
+      } else {
+        // Marcando como pendente
+        updates.payment_date = null;
+      }
+
       const { data, error } = await supabase
         .from('transactions')
-        .update({ is_paid: !currentStatus })
+        .update(updates)
         .eq('id', id)
         .eq('user_id', userId)
         .select();
