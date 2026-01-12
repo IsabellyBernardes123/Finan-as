@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { Transaction, Summary, UserCategories, CreditCard } from '../types';
+import { Transaction, Summary, UserCategories, CreditCard, Account } from '../types';
 import { supabase } from '../services/supabaseClient';
 
 const DEFAULT_CATEGORIES: UserCategories = {
@@ -14,6 +14,7 @@ const DEFAULT_CATEGORIES: UserCategories = {
 export const useFinanceData = (userId: string | null) => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [cards, setCards] = useState<CreditCard[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<UserCategories>(DEFAULT_CATEGORIES);
   const [loading, setLoading] = useState(false);
 
@@ -41,6 +42,9 @@ export const useFinanceData = (userId: string | null) => {
 
       const { data: cardsData } = await supabase.from('credit_cards').select('*').eq('user_id', userId);
       setCards(cardsData || []);
+
+      const { data: accountsData } = await supabase.from('accounts').select('*').eq('user_id', userId);
+      setAccounts(accountsData || []);
 
       const { data: transData, error: transError } = await supabase
         .from('transactions')
@@ -84,7 +88,7 @@ export const useFinanceData = (userId: string | null) => {
   const updateTransaction = useCallback(async (id: string, updates: Partial<Transaction>) => {
     if (!userId || !id) return false;
     try {
-      const allowedKeys = ['description', 'amount', 'type', 'category', 'date', 'payment_date', 'card_id', 'is_split', 'split_details', 'is_paid'];
+      const allowedKeys = ['description', 'amount', 'type', 'category', 'date', 'payment_date', 'card_id', 'account_id', 'is_split', 'split_details', 'is_paid'];
       const payload = Object.fromEntries(
         Object.entries(updates).filter(([key]) => allowedKeys.includes(key))
       );
@@ -131,16 +135,54 @@ export const useFinanceData = (userId: string | null) => {
     } catch (err) { console.error('Erro ao alternar status:', err); }
   }, [userId]);
 
+  // --- Cards CRUD ---
   const addCard = async (card: Omit<CreditCard, 'id'>) => {
     if (!userId) return;
     const { data, error } = await supabase.from('credit_cards').insert([{ ...card, user_id: userId }]).select();
     if (!error && data && data.length > 0) setCards(prev => [...prev, data[0]]);
   };
 
+  const updateCard = async (id: string, updates: Partial<CreditCard>) => {
+    if (!userId) return;
+    const { data, error } = await supabase
+      .from('credit_cards')
+      .update(updates)
+      .eq('id', id)
+      .eq('user_id', userId)
+      .select();
+    
+    if (!error && data && data.length > 0) {
+      setCards(prev => prev.map(c => c.id === id ? data[0] : c));
+    }
+  };
+
   const deleteCard = async (id: string) => {
     if (!userId) return;
     const { error } = await supabase.from('credit_cards').delete().eq('id', id).eq('user_id', userId);
     if (!error) setCards(prev => prev.filter(c => c.id !== id));
+  };
+
+  // --- Accounts CRUD ---
+  const addAccount = async (account: Omit<Account, 'id'>) => {
+    if (!userId) return false;
+    try {
+      const { data, error } = await supabase.from('accounts').insert([{ ...account, user_id: userId }]).select();
+      if (error) throw error;
+      if (data && data.length > 0) {
+        setAccounts(prev => [...prev, data[0]]);
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error('Erro ao adicionar conta. Tabela existe?', err);
+      return false;
+    }
+  };
+
+  const deleteAccount = async (id: string) => {
+    if (!userId) return;
+    const { error } = await supabase.from('accounts').delete().eq('id', id).eq('user_id', userId);
+    if (!error) setAccounts(prev => prev.filter(a => a.id !== id));
   };
 
   const deleteTransaction = useCallback(async (id: string) => {
@@ -219,9 +261,10 @@ export const useFinanceData = (userId: string | null) => {
   };
 
   return {
-    transactions, cards, categories,
+    transactions, cards, accounts, categories,
     addTransaction, updateTransaction, deleteTransaction, togglePaid,
-    addCard, deleteCard,
+    addCard, updateCard, deleteCard,
+    addAccount, deleteAccount,
     addCategory, updateCategory, deleteCategory,
     loading
   };
