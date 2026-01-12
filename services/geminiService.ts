@@ -2,8 +2,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Transaction } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 export interface AIInsightResponse {
   analysis: string;
   savings: string;
@@ -12,6 +10,12 @@ export interface AIInsightResponse {
 
 export const getFinancialInsights = async (transactions: Transaction[]): Promise<AIInsightResponse | string> => {
   if (transactions.length < 3) return "Adicione pelo menos 3 transações para que eu possa analisar seus padrões financeiros.";
+
+  // Segurança: Verifica se a chave existe antes de tentar instanciar
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    return "IA não disponível: Chave de API Gemini não configurada no ambiente.";
+  }
 
   const summary = transactions.map(t => ({
     tipo: t.type === 'income' ? 'Entrada' : 'Saída',
@@ -27,6 +31,9 @@ export const getFinancialInsights = async (transactions: Transaction[]): Promise
   Histórico: ${JSON.stringify(summary)}`;
 
   try {
+    // Instanciação segura dentro da função
+    const ai = new GoogleGenAI({ apiKey });
+
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: prompt,
@@ -66,6 +73,6 @@ export const getFinancialInsights = async (transactions: Transaction[]): Promise
     return "Não foi possível gerar insights no momento.";
   } catch (error) {
     console.error("Gemini Error:", error);
-    return "Erro de conexão com o consultor IA. Verifique sua chave de API.";
+    return "Erro de conexão com a IA. Verifique sua chave de API ou tente novamente mais tarde.";
   }
 };
