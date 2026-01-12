@@ -3,7 +3,7 @@ import React from 'react';
 import { User } from '../types';
 import Logo from './Logo';
 
-export type ViewType = 'dashboard' | 'add-expense' | 'add-income' | 'reports' | 'categories' | 'cards' | 'payers' | 'payer-reports' | 'data-management';
+export type ViewType = 'dashboard' | 'add-expense' | 'add-income' | 'reports' | 'categories' | 'cards' | 'accounts' | 'payers' | 'payer-reports' | 'data-management';
 
 interface SidebarProps {
   currentView: ViewType;
@@ -23,6 +23,9 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, currentUse
     { id: 'add-income', label: 'Receitas', shortLabel: 'Rec.', icon: (
       <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="m9 12 3 3 3-3"/><path d="M12 15V9"/></svg>
     ), color: 'text-teal-600' },
+    { id: 'accounts', label: 'Minhas Contas', shortLabel: 'Contas', icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 21h18"/><path d="M5 21V7l8-4 8 4v14"/><path d="M17 21v-8H7v8"/></svg>
+    ), color: 'text-slate-600' },
     { id: 'cards', label: 'Cartões', shortLabel: 'Cards', icon: (
       <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
     ), color: 'text-indigo-600' },

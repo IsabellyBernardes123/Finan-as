@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { Transaction, TransactionType, UserCategories, CreditCard, SplitDetails } from '../types';
+import { Transaction, TransactionType, UserCategories, CreditCard, Account, SplitDetails } from '../types';
+import { supabase } from '../services/supabaseClient';
 
 interface TransactionFormProps {
   onAdd: (data: any) => Promise<boolean>;
@@ -27,15 +28,30 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
   const [type, setType] = useState<TransactionType>(initialType);
   const [category, setCategory] = useState('');
+  
+  // Seleção de meio de pagamento
   const [selectedCardId, setSelectedCardId] = useState('');
+  const [selectedAccountId, setSelectedAccountId] = useState('');
+  const [availableAccounts, setAvailableAccounts] = useState<Account[]>([]);
+  
   const [installments, setInstallments] = useState(1);
   const [installmentMode, setInstallmentMode] = useState<'divide' | 'repeat'>('divide');
   const [isSplit, setIsSplit] = useState(false);
-  const [isPaid, setIsPaid] = useState(false); // Definido como falso por padrão
+  const [isPaid, setIsPaid] = useState(false);
   const [partnerPart, setPartnerPart] = useState('');
   const [partnerName, setPartnerName] = useState(categories.payers?.[0] || 'Isa');
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Buscar contas ao montar
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        supabase.from('accounts').select('*').eq('user_id', session.user.id)
+          .then(({ data }) => { if (data) setAvailableAccounts(data); });
+      }
+    });
+  }, []);
 
   useEffect(() => {
     if (editingTransaction) {
@@ -46,6 +62,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
       setType(editingTransaction.type);
       setCategory(editingTransaction.category);
       setSelectedCardId(editingTransaction.card_id || '');
+      setSelectedAccountId(editingTransaction.account_id || '');
       setIsSplit(!!editingTransaction.is_split);
       setIsPaid(editingTransaction.is_paid);
       if (editingTransaction.split_details) {
@@ -60,10 +77,11 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
       setType(initialType);
       setCategory(categories[initialType][0] || 'Outros');
       setSelectedCardId('');
+      setSelectedAccountId('');
       setInstallments(1);
       setInstallmentMode('divide');
       setIsSplit(false);
-      setIsPaid(false); // Garante que novos lançamentos comecem como pendentes
+      setIsPaid(false);
       setPartnerPart('');
       setPartnerName(categories.payers?.[0] || 'Isa');
     }
@@ -81,6 +99,10 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
         return d.toISOString();
       };
 
+      // Define se usa cartão ou conta
+      const finalCardId = selectedCardId || null;
+      const finalAccountId = !selectedCardId && selectedAccountId ? selectedAccountId : null;
+
       if (editingTransaction && onUpdate) {
         const splitInfo: SplitDetails | undefined = isSplit ? {
           userPart: inputValue - (parseFloat(partnerPart) || 0),
@@ -95,7 +117,8 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
           category,
           date: getSafeISO(date),
           payment_date: isPaid ? getSafeISO(paymentDate) : null,
-          card_id: selectedCardId || null,
+          card_id: finalCardId,
+          account_id: finalAccountId,
           is_split: isSplit,
           split_details: splitInfo,
           is_paid: isPaid
@@ -135,7 +158,8 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
           category: category || 'Outros',
           date: targetDate.toISOString(),
           payment_date: isPaid ? targetDate.toISOString() : null,
-          card_id: selectedCardId || null,
+          card_id: finalCardId,
+          account_id: finalAccountId,
           is_split: isSplit,
           split_details: splitInfo,
           is_paid: isPaid
@@ -223,17 +247,40 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
                 {categories[type].map(cat => <option key={cat} value={cat}>{cat}</option>)}
               </select>
             </div>
-            <div>
-              <label className={labelClasses}>Pagamento</label>
-              <select value={selectedCardId} onChange={e => setSelectedCardId(e.target.value)} className={`${inputClasses} appearance-none pr-8 bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23cbd5e1%22%20stroke-width%3D%223%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:12px_12px] bg-[right_0.6rem_center] bg-no-repeat`}>
-                <option value="">Dinheiro / Pix</option>
-                {cards.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
+            
+            {/* Lógica de Seleção de Pagamento */}
+            <div className="md:col-span-2 grid grid-cols-2 gap-3">
+               <div>
+                  <label className={labelClasses}>Cartão de Crédito</label>
+                  <select 
+                    value={selectedCardId} 
+                    onChange={e => { setSelectedCardId(e.target.value); if(e.target.value) setSelectedAccountId(''); }} 
+                    className={`${inputClasses} appearance-none pr-8 bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23cbd5e1%22%20stroke-width%3D%223%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:12px_12px] bg-[right_0.6rem_center] bg-no-repeat`}
+                  >
+                    <option value="">Não usar cartão</option>
+                    {cards.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+               </div>
+               <div>
+                  <label className={labelClasses}>Conta / Carteira</label>
+                  <select 
+                    value={selectedAccountId} 
+                    onChange={e => setSelectedAccountId(e.target.value)} 
+                    disabled={!!selectedCardId}
+                    className={`${inputClasses} ${!!selectedCardId ? 'opacity-50' : ''} appearance-none pr-8 bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23cbd5e1%22%20stroke-width%3D%223%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:12px_12px] bg-[right_0.6rem_center] bg-no-repeat`}
+                  >
+                    <option value="">Sem conta vinculada</option>
+                    {availableAccounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  </select>
+               </div>
             </div>
-            <div>
-              <label className={`${labelClasses} text-indigo-500`}>Nº Meses</label>
-              <input type="number" min="1" max="99" value={installments} disabled={!!editingTransaction} onChange={e => setInstallments(parseInt(e.target.value) || 1)} className={`${inputClasses} border-indigo-50 bg-indigo-50/20 disabled:opacity-40`} />
-            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+             <div className="md:col-start-4">
+               <label className={`${labelClasses} text-indigo-500`}>Nº Meses</label>
+               <input type="number" min="1" max="99" value={installments} disabled={!!editingTransaction} onChange={e => setInstallments(parseInt(e.target.value) || 1)} className={`${inputClasses} border-indigo-50 bg-indigo-50/20 disabled:opacity-40`} />
+             </div>
           </div>
 
           {!editingTransaction && installments > 1 && (

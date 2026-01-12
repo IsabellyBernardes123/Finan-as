@@ -1,6 +1,6 @@
 
-import React, { useState, useMemo } from 'react';
-import { Transaction, UserCategories, Summary, CreditCard } from '../types';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Transaction, UserCategories, Summary, CreditCard, Account } from '../types';
 import { supabase } from '../services/supabaseClient';
 import { getCategoryIcon, getCategoryStyles } from '../utils/icons';
 
@@ -11,13 +11,17 @@ interface ReportsProps {
 
 const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
   const [cards, setCards] = useState<CreditCard[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [isFiltersVisible, setIsFiltersVisible] = useState(false);
   
-  React.useEffect(() => {
+  useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         supabase.from('credit_cards').select('*').eq('user_id', session.user.id).then(({ data }) => {
           if (data) setCards(data);
+        });
+        supabase.from('accounts').select('*').eq('user_id', session.user.id).then(({ data }) => {
+          if (data) setAccounts(data);
         });
       }
     });
@@ -91,7 +95,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
   };
 
   const exportToExcel = () => {
-    const headers = ["Vencimento", "Pagamento", "Descrição", "Categoria", "Tipo", "Valor", "Status"];
+    const headers = ["Vencimento", "Pagamento", "Descrição", "Categoria", "Tipo", "Conta / Origem", "Método", "Valor", "Status"];
     const rows = filteredTransactions.map(t => {
       let val = t.amount;
       if (selectedPayer === 'individual' && t.is_split && t.split_details) {
@@ -100,12 +104,19 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
         val = t.split_details.partnerPart;
       }
 
+      const card = t.card_id ? cards.find(c => c.id === t.card_id) : null;
+      const account = t.account_id ? accounts.find(a => a.id === t.account_id) : null;
+      const source = card ? card.name : (account ? account.name : 'Carteira');
+      const method = card ? 'Cartão de Crédito' : 'Dinheiro / Pix';
+
       return [
         new Date(t.date).toLocaleDateString('pt-BR'),
         t.payment_date ? new Date(t.payment_date).toLocaleDateString('pt-BR') : '-',
         t.description.replace(/;/g, ','),
         t.category,
         t.type === 'income' ? 'Entrada' : 'Saída',
+        source,
+        method,
         val.toString().replace('.', ','),
         t.is_paid ? 'Pago' : 'Pendente'
       ];
@@ -223,13 +234,13 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
                 <th className="py-4 px-3 w-24">Pagamento</th>
                 <th className="py-4 px-3 min-w-[150px]">Descrição</th>
                 <th className="py-4 px-3">Categoria</th>
+                <th className="py-4 px-3 w-28">Conta / Origem</th>
                 <th className="py-4 px-3 w-28">Método</th>
                 <th className="py-4 px-3 text-right w-28">Valor</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50 print:divide-slate-200">
               {filteredTransactions.map((t) => {
-                const card = cards.find(c => c.id === t.card_id);
                 const style = getCategoryStyles(t.category, categories);
                 const inlineStyles = style.isCustom ? {
                   backgroundColor: `${style.customColor}15`,
@@ -240,6 +251,9 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
                 let displayVal = t.amount;
                 if (selectedPayer === 'individual' && t.is_split && t.split_details) { displayVal = t.split_details.userPart; }
                 else if (selectedPayer !== 'all' && t.is_split && t.split_details) { displayVal = t.split_details.partnerPart; }
+
+                const card = t.card_id ? cards.find(c => c.id === t.card_id) : null;
+                const account = t.account_id ? accounts.find(a => a.id === t.account_id) : null;
 
                 return (
                   <tr key={t.id} className="hover:bg-slate-50/40 transition-colors print:hover:bg-transparent">
@@ -277,7 +291,10 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
                       </div>
                     </td>
                     <td className="py-4 px-3 text-[10px] font-bold text-slate-500 uppercase print:text-slate-600">
-                      {card ? card.name : 'DINHEIRO/PIX'}
+                      {card ? card.name : (account ? account.name : 'CARTEIRA')}
+                    </td>
+                    <td className="py-4 px-3 text-[10px] font-bold text-indigo-500 uppercase print:text-indigo-600">
+                      {card ? 'CARTÃO DE CRÉDITO' : 'DINHEIRO / PIX'}
                     </td>
                     <td className={`py-4 px-3 text-right font-bold text-sm ${t.type === 'income' ? 'text-teal-600' : 'text-rose-500'} ${!t.is_paid ? 'opacity-50' : ''} print:opacity-100`}>
                       {formatCurrency(displayVal)}
@@ -292,7 +309,6 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
         {/* Blocos Mobile - Escondidos no PRINT */}
         <div className="md:hidden print:hidden space-y-4">
           {filteredTransactions.map((t) => {
-            const card = cards.find(c => c.id === t.card_id);
             const style = getCategoryStyles(t.category, categories);
             const inlineStyles = style.isCustom ? {
               backgroundColor: `${style.customColor}15`,
@@ -303,6 +319,9 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
             let displayVal = t.amount;
             if (selectedPayer === 'individual' && t.is_split && t.split_details) { displayVal = t.split_details.userPart; }
             else if (selectedPayer !== 'all' && t.is_split && t.split_details) { displayVal = t.split_details.partnerPart; }
+
+            const accountName = t.account_id ? accounts.find(a => a.id === t.account_id)?.name : null;
+            const cardName = t.card_id ? cards.find(c => c.id === t.card_id)?.name : null;
 
             return (
               <div key={t.id} className="flex flex-col gap-2 p-3 bg-slate-50/50 rounded-lg border border-transparent hover:border-slate-100 transition-all">
@@ -325,9 +344,11 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
                       </div>
                       <div>
                         <p className="text-xs font-bold text-slate-800 leading-tight mb-0.5">{t.description}</p>
-                        <p className="text-[8px] font-black uppercase tracking-tighter text-slate-400">
-                          {t.category} <span className="text-slate-400">• {card ? card.name : 'Dinheiro'}</span>
-                        </p>
+                        <div className="flex gap-1.5 flex-wrap">
+                          <span className="text-[8px] font-black uppercase tracking-tighter text-slate-400">{t.category}</span>
+                          <span className="text-[8px] font-black uppercase tracking-tighter text-slate-600">• {cardName || accountName || 'Carteira'}</span>
+                          <span className={`text-[8px] font-black uppercase tracking-tighter ${cardName ? 'text-indigo-500' : 'text-slate-400'}`}>• {cardName ? 'Crédito' : 'À Vista'}</span>
+                        </div>
                       </div>
                    </div>
                    <p className={`text-sm font-black ${t.type === 'income' ? 'text-teal-600' : 'text-rose-500'} ${!t.is_paid ? 'opacity-50' : ''}`}>

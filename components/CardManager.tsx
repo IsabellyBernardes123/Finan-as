@@ -1,19 +1,22 @@
 
 import React, { useState, useMemo } from 'react';
-import { CreditCard, Transaction } from '../types';
+import { CreditCard, Transaction, Account } from '../types';
 
 interface CardManagerProps {
   cards: CreditCard[];
+  accounts: Account[];
   transactions: Transaction[];
   onAdd: (card: Omit<CreditCard, 'id'>) => void;
+  onUpdate: (id: string, card: Partial<CreditCard>) => void;
   onDelete: (id: string) => void;
 }
 
-const CardManager: React.FC<CardManagerProps> = ({ cards, transactions, onAdd, onDelete }) => {
+const CardManager: React.FC<CardManagerProps> = ({ cards, accounts, transactions, onAdd, onUpdate, onDelete }) => {
   const [showAdd, setShowAdd] = useState(false);
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
+  const [editingCard, setEditingCard] = useState<CreditCard | null>(null);
   
-  // Estados para o Filtro de Datas (afeta apenas a listagem e o resumo do período)
+  // Estados para o Filtro de Datas
   const getInitialDates = () => {
     const now = new Date();
     const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
@@ -25,28 +28,63 @@ const CardManager: React.FC<CardManagerProps> = ({ cards, transactions, onAdd, o
   const [startDate, setStartDate] = useState(initStart);
   const [endDate, setEndDate] = useState(initEnd);
 
-  // Estados para o formulário de novo cartão
+  // Estados para o formulário
   const [name, setName] = useState('');
   const [limit, setLimit] = useState('');
   const [closing, setClosing] = useState(5);
   const [due, setDue] = useState(15);
   const [color, setColor] = useState('#4f46e5');
+  const [selectedAccountId, setSelectedAccountId] = useState('');
+
+  const resetForm = () => {
+    setName('');
+    setLimit('');
+    setClosing(5);
+    setDue(15);
+    setColor('#4f46e5');
+    setSelectedAccountId('');
+    setEditingCard(null);
+  };
+
+  const handleEditClick = (card: CreditCard) => {
+    setEditingCard(card);
+    setName(card.name);
+    setLimit(card.credit_limit.toString());
+    setClosing(card.closing_day);
+    setDue(card.due_day);
+    setColor(card.color);
+    setSelectedAccountId(card.account_id || '');
+    setShowAdd(true);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onAdd({ name, credit_limit: parseFloat(limit), closing_day: closing, due_day: due, color });
-    setName(''); setLimit(''); setShowAdd(false);
+    const cardData = { 
+      name, 
+      credit_limit: parseFloat(limit), 
+      closing_day: closing, 
+      due_day: due, 
+      color,
+      account_id: selectedAccountId || null 
+    };
+
+    if (editingCard) {
+      onUpdate(editingCard.id, cardData);
+    } else {
+      onAdd(cardData);
+    }
+    
+    resetForm();
+    setShowAdd(false);
   };
 
   const formatCurrency = (val: number) => 
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
-  // Mapeamento de dados dos cartões com lógica global de limite
   const cardDataMap = useMemo(() => {
     const map = new Map();
 
     cards.forEach(card => {
-      // 1. Transações do Período (para a lista expandida)
       const transactionsInPeriod = transactions
         .filter(t => {
           if (t.card_id !== card.id) return false;
@@ -55,7 +93,6 @@ const CardManager: React.FC<CardManagerProps> = ({ cards, transactions, onAdd, o
         })
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-      // 2. Estatísticas do Período
       const periodStats = transactionsInPeriod.reduce((acc, t) => {
         const amt = Number(t.amount);
         acc.total += amt;
@@ -69,7 +106,6 @@ const CardManager: React.FC<CardManagerProps> = ({ cards, transactions, onAdd, o
         return acc;
       }, { total: 0, userPart: 0, others: {} as Record<string, number> });
 
-      // 3. DÍVIDA GLOBAL (O que ocupa o limite): Todas as despesas NÃO PAGAS, de qualquer data
       const totalDebt = transactions
         .filter(t => t.card_id === card.id && t.type === 'expense' && !t.is_paid)
         .reduce((sum, t) => sum + Number(t.amount), 0);
@@ -111,7 +147,7 @@ const CardManager: React.FC<CardManagerProps> = ({ cards, transactions, onAdd, o
               className="bg-transparent border-none px-3 py-1.5 text-xs font-bold text-indigo-600 outline-none w-[120px]"
             />
           </div>
-          <button onClick={() => setShowAdd(true)} className="bg-indigo-600 text-white px-5 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest shadow-lg shadow-indigo-100 transition-all hover:bg-indigo-700 active:scale-95">
+          <button onClick={() => { resetForm(); setShowAdd(true); }} className="bg-indigo-600 text-white px-5 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest shadow-lg shadow-indigo-100 transition-all hover:bg-indigo-700 active:scale-95">
             Novo Cartão
           </button>
         </div>
@@ -121,14 +157,13 @@ const CardManager: React.FC<CardManagerProps> = ({ cards, transactions, onAdd, o
         {cards.map(card => {
           const { transactionsInPeriod, periodStats, totalDebt } = cardDataMap.get(card.id) || { transactionsInPeriod: [], periodStats: { total: 0, userPart: 0, others: {} }, totalDebt: 0 };
           
-          // Porcentagem baseada na dívida total pendente (não no período)
           const percentUsed = Math.min(100, (totalDebt / card.credit_limit) * 100);
           const availableLimit = Math.max(0, card.credit_limit - totalDebt);
           const isExpanded = expandedCardId === card.id;
+          const linkedAccount = accounts.find(a => a.id === card.account_id);
           
           return (
             <div key={card.id} className="bg-white rounded-xl border border-slate-100 overflow-hidden shadow-sm transition-all hover:border-indigo-100">
-              {/* Row Principal do Cartão */}
               <div 
                 onClick={() => setExpandedCardId(isExpanded ? null : card.id)}
                 className={`flex flex-col md:flex-row items-stretch md:items-center gap-4 p-4 cursor-pointer transition-colors ${isExpanded ? 'bg-indigo-50/20' : 'hover:bg-slate-50/40'}`}
@@ -139,11 +174,13 @@ const CardManager: React.FC<CardManagerProps> = ({ cards, transactions, onAdd, o
                   </div>
                   <div>
                     <h3 className="font-bold text-slate-800 text-sm leading-none mb-1">{card.name}</h3>
-                    <p className="text-[8px] text-slate-400 font-bold uppercase tracking-tighter">F: {card.closing_day} • V: {card.due_day}</p>
+                    <div className="flex items-center gap-2">
+                       <p className="text-[8px] text-slate-400 font-bold uppercase tracking-tighter">F: {card.closing_day} • V: {card.due_day}</p>
+                       {linkedAccount && <span className="text-[8px] font-black uppercase text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100">Via {linkedAccount.name}</span>}
+                    </div>
                   </div>
                 </div>
 
-                {/* Barra de Limite Global */}
                 <div className="flex-1 flex flex-col justify-center px-0 md:px-4">
                   <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
                     <div className="h-full transition-all duration-700" style={{ width: `${percentUsed}%`, backgroundColor: card.color }}></div>
@@ -169,7 +206,6 @@ const CardManager: React.FC<CardManagerProps> = ({ cards, transactions, onAdd, o
                 </div>
               </div>
 
-              {/* Expansão com Detalhes do Período */}
               {isExpanded && (
                 <div className="border-t border-slate-50 bg-slate-50/30 p-4 md:p-6 animate-in slide-in-from-top-1 duration-200">
                   <div className="flex flex-col md:flex-row justify-between items-start gap-6 mb-6">
@@ -190,13 +226,22 @@ const CardManager: React.FC<CardManagerProps> = ({ cards, transactions, onAdd, o
                       ))}
                     </div>
                     
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); onDelete(card.id); }}
-                      className="flex items-center gap-1.5 text-rose-500 hover:text-rose-600 text-[10px] font-bold uppercase transition-colors px-3 py-1.5 rounded-lg border border-rose-50 hover:bg-rose-50"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/></svg>
-                      Excluir Cartão
-                    </button>
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); handleEditClick(card); }}
+                        className="flex items-center gap-1.5 text-indigo-500 hover:text-indigo-600 text-[10px] font-bold uppercase transition-colors px-3 py-1.5 rounded-lg border border-indigo-50 hover:bg-indigo-50"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                        Editar Cartão
+                      </button>
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); onDelete(card.id); }}
+                        className="flex items-center gap-1.5 text-rose-500 hover:text-rose-600 text-[10px] font-bold uppercase transition-colors px-3 py-1.5 rounded-lg border border-rose-50 hover:bg-rose-50"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/></svg>
+                        Excluir
+                      </button>
+                    </div>
                   </div>
 
                   <div className="bg-white rounded-xl border border-slate-100 divide-y divide-slate-50">
@@ -247,7 +292,7 @@ const CardManager: React.FC<CardManagerProps> = ({ cards, transactions, onAdd, o
       {showAdd && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
           <div className="bg-white p-6 md:p-8 rounded-3xl shadow-2xl w-full max-w-md animate-in zoom-in-95">
-            <h3 className="text-lg font-bold text-slate-900 mb-6">Novo Cartão</h3>
+            <h3 className="text-lg font-bold text-slate-900 mb-6">{editingCard ? 'Editar Cartão' : 'Novo Cartão'}</h3>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1.5 ml-1">Identificação</label>
@@ -273,9 +318,27 @@ const CardManager: React.FC<CardManagerProps> = ({ cards, transactions, onAdd, o
                   <input type="number" min="1" max="31" value={due} onChange={e => setDue(parseInt(e.target.value))} className="w-full px-4 py-3 bg-slate-50 rounded-xl outline-none border-2 border-transparent focus:border-indigo-100 font-bold text-slate-900 text-sm" />
                 </div>
               </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1.5 ml-1">Vincular a Conta (Opcional)</label>
+                <select 
+                  value={selectedAccountId} 
+                  onChange={e => setSelectedAccountId(e.target.value)}
+                  className="w-full px-4 py-3 bg-slate-50 rounded-xl outline-none border-2 border-transparent focus:border-indigo-100 font-bold text-slate-900 text-xs"
+                >
+                  <option value="">Nenhuma (Controle manual)</option>
+                  {accounts.map(acc => (
+                    <option key={acc.id} value={acc.id}>{acc.name} ({acc.type})</option>
+                  ))}
+                </select>
+                <p className="text-[9px] text-slate-400 mt-1 ml-1">Isso ajuda a lembrar de onde sai o pagamento da fatura.</p>
+              </div>
+              
               <div className="flex gap-3 pt-6">
-                <button type="button" onClick={() => setShowAdd(false)} className="flex-1 py-4 text-slate-400 font-bold text-[10px] uppercase tracking-widest hover:text-slate-600 transition-colors">Cancelar</button>
-                <button type="submit" className="flex-1 bg-indigo-600 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all">Salvar Cartão</button>
+                <button type="button" onClick={() => { setShowAdd(false); resetForm(); }} className="flex-1 py-4 text-slate-400 font-bold text-[10px] uppercase tracking-widest hover:text-slate-600 transition-colors">Cancelar</button>
+                <button type="submit" className="flex-1 bg-indigo-600 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all">
+                  {editingCard ? 'Salvar Alterações' : 'Criar Cartão'}
+                </button>
               </div>
             </form>
           </div>
