@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { Transaction, UserCategories } from '../types';
 import { getCategoryIcon, getCategoryStyles } from '../utils/icons';
 
@@ -45,9 +45,9 @@ const Charts: React.FC<ChartsProps> = ({ transactions, categories }) => {
               <Pie
                 data={expenseData}
                 cx="50%"
-                cy="50%"
-                innerRadius={65}
-                outerRadius={85}
+                cy="45%"
+                innerRadius={60}
+                outerRadius={80}
                 paddingAngle={8}
                 dataKey="value"
                 stroke="none"
@@ -59,6 +59,18 @@ const Charts: React.FC<ChartsProps> = ({ transactions, categories }) => {
               <Tooltip 
                 formatter={(value: number) => `R$ ${value.toFixed(2)}`}
                 contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '11px', fontWeight: 'bold' }}
+              />
+              <Legend 
+                verticalAlign="bottom" 
+                align="center"
+                iconType="circle"
+                iconSize={8}
+                formatter={(value) => (
+                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-tighter ml-1">
+                    {value}
+                  </span>
+                )}
+                wrapperStyle={{ paddingTop: '10px' }}
               />
             </PieChart>
           </ResponsiveContainer>

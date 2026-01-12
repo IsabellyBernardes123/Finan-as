@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Transaction, UserCategories, Summary, CreditCard, Account } from '../types';
 import { supabase } from '../services/supabaseClient';
 import { getCategoryIcon, getCategoryStyles } from '../utils/icons';
@@ -13,6 +13,8 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
   const [cards, setCards] = useState<CreditCard[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [isFiltersVisible, setIsFiltersVisible] = useState(false);
+  const [isPayerDropdownOpen, setIsPayerDropdownOpen] = useState(false);
+  const payerDropdownRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -27,6 +29,16 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
     });
   }, []);
 
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (payerDropdownRef.current && !payerDropdownRef.current.contains(event.target as Node)) {
+        setIsPayerDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const getInitialDates = () => {
     const now = new Date();
     const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
@@ -39,7 +51,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
   const [startDate, setStartDate] = useState(initStart);
   const [endDate, setEndDate] = useState(initEnd);
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [selectedPayer, setSelectedPayer] = useState('all');
+  const [selectedPayers, setSelectedPayers] = useState<string[]>(['all']);
   const [statusFilter, setStatusFilter] = useState<'all' | 'paid' | 'pending'>('all');
 
   const { filteredTransactions, summary } = useMemo(() => {
@@ -52,18 +64,20 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
         if (statusFilter === 'paid' && !t.is_paid) return false;
         if (statusFilter === 'pending' && t.is_paid) return false;
         
-        if (selectedPayer === 'individual') return true;
-        if (selectedPayer !== 'all') return t.is_split && t.split_details?.partnerName === selectedPayer;
-        
-        return true;
+        let matchesPayer = selectedPayers.includes('all');
+        if (!matchesPayer) {
+           if (selectedPayers.includes('individual') && !t.is_split) matchesPayer = true;
+           if (t.is_split && selectedPayers.includes(t.split_details?.partnerName || '')) matchesPayer = true;
+        }
+        return matchesPayer;
       })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
     const stats = filtered.reduce((acc, t) => {
       let amt = Number(t.amount);
-      if (selectedPayer === 'individual' && t.is_split && t.split_details) {
+      if (selectedPayers.length === 1 && selectedPayers[0] === 'individual' && t.is_split && t.split_details) {
         amt = Number(t.split_details.userPart);
-      } else if (selectedPayer !== 'all' && t.is_split && t.split_details) {
+      } else if (selectedPayers.length === 1 && selectedPayers[0] !== 'all' && t.is_split && t.split_details) {
         amt = Number(t.split_details.partnerPart);
       }
 
@@ -78,7 +92,28 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
     }, { balance: 0, income: 0, expenses: 0 } as Summary);
 
     return { filteredTransactions: filtered, summary: stats };
-  }, [transactions, filter, startDate, endDate, selectedCategory, selectedPayer, statusFilter]);
+  }, [transactions, filter, startDate, endDate, selectedCategory, selectedPayers, statusFilter]);
+
+  const togglePayerFilter = (payerId: string) => {
+    setSelectedPayers(prev => {
+      if (payerId === 'all') return ['all'];
+      const newFilters = prev.filter(f => f !== 'all');
+      if (newFilters.includes(payerId)) {
+        const filtered = newFilters.filter(f => f !== payerId);
+        return filtered.length === 0 ? ['all'] : filtered;
+      } else {
+        return [...newFilters, payerId];
+      }
+    });
+  };
+
+  const getPayerButtonLabel = () => {
+    if (selectedPayers.includes('all')) return 'Todos';
+    if (selectedPayers.length === 1) {
+      return selectedPayers[0] === 'individual' ? 'Apenas Eu' : selectedPayers[0];
+    }
+    return `${selectedPayers.length} Selecionados`;
+  };
 
   const formatCurrency = (val: number) => 
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -89,7 +124,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
     setStartDate(firstDay);
     setEndDate(lastDay);
     setSelectedCategory('all');
-    setSelectedPayer('all');
+    setSelectedPayers(['all']);
     setStatusFilter('all');
     if (window.innerWidth < 1024) setIsFiltersVisible(false);
   };
@@ -98,9 +133,9 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
     const headers = ["Vencimento", "Pagamento", "Descrição", "Categoria", "Tipo", "Conta / Origem", "Método", "Valor", "Status"];
     const rows = filteredTransactions.map(t => {
       let val = t.amount;
-      if (selectedPayer === 'individual' && t.is_split && t.split_details) {
+      if (selectedPayers.length === 1 && selectedPayers[0] === 'individual' && t.is_split && t.split_details) {
         val = t.split_details.userPart;
-      } else if (selectedPayer !== 'all' && t.is_split && t.split_details) {
+      } else if (selectedPayers.length === 1 && selectedPayers[0] !== 'all' && t.is_split && t.split_details) {
         val = t.split_details.partnerPart;
       }
 
@@ -152,8 +187,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm border border-slate-100 no-print overflow-hidden filter-bar">
-        {/* Mobile Toggle Button */}
+      <div className="bg-white rounded-lg shadow-sm border border-slate-100 no-print filter-bar relative z-30">
         <button 
           onClick={() => setIsFiltersVisible(!isFiltersVisible)}
           className="w-full px-4 py-3 flex items-center justify-between lg:hidden transition-colors hover:bg-slate-50 border-b border-transparent data-[open=true]:border-slate-100"
@@ -170,7 +204,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
           </svg>
         </button>
 
-        <div className={`p-4 ${isFiltersVisible ? 'block animate-in slide-in-from-top-2 duration-300' : 'hidden lg:block'}`}>
+        <div className={`p-4 ${isFiltersVisible ? 'block' : 'hidden lg:block'}`}>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 items-end">
             <div className="col-span-1 sm:col-span-2 grid grid-cols-2 gap-2">
               <div>
@@ -199,14 +233,44 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
                 <option value="pending">Pendente</option>
               </select>
             </div>
-            <div>
-              <label className="text-[9px] font-bold text-slate-400 uppercase mb-1.5 block">Pagante</label>
-              <select value={selectedPayer} onChange={(e) => setSelectedPayer(e.target.value)} className="w-full bg-slate-50 border-none rounded-md px-4 py-2 text-xs font-bold text-slate-700 outline-none">
-                <option value="all">Todos</option>
-                <option value="individual">Apenas Eu</option>
-                {categories.payers?.map(p => <option key={p} value={p}>{p}</option>)}
-              </select>
+            
+            <div className="relative" ref={payerDropdownRef}>
+              <label className="text-[9px] font-bold text-slate-400 uppercase mb-1.5 block">Pagantes</label>
+              <button 
+                onClick={() => setIsPayerDropdownOpen(!isPayerDropdownOpen)}
+                className="w-full bg-slate-50 rounded-md px-4 py-2 text-xs font-bold text-slate-700 flex items-center justify-between border border-transparent hover:border-indigo-100 transition-colors"
+              >
+                <span className="truncate">{getPayerButtonLabel()}</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-slate-300 ml-1"><path d="m6 9 6 6 6-6"/></svg>
+              </button>
+              
+              {isPayerDropdownOpen && (
+                <div className="absolute bottom-full lg:bottom-auto lg:top-full left-0 right-0 mb-2 lg:mb-0 lg:mt-2 bg-white rounded-xl shadow-2xl border border-slate-100 z-50 py-2 animate-in fade-in slide-in-from-bottom-2 lg:slide-in-from-top-2 duration-200 min-w-[200px]">
+                  <button onClick={() => togglePayerFilter('all')} className="w-full px-4 py-2.5 text-left text-xs font-bold flex items-center gap-3 hover:bg-slate-50 transition-colors text-slate-700">
+                    <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${selectedPayers.includes('all') ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300'}`}>
+                      {selectedPayers.includes('all') && <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4"><path d="M20 6 9 17l-5-5"/></svg>}
+                    </div>
+                    <span className="flex-1">Todos</span>
+                  </button>
+                  <button onClick={() => togglePayerFilter('individual')} className="w-full px-4 py-2.5 text-left text-xs font-bold flex items-center gap-3 hover:bg-slate-50 transition-colors text-slate-700">
+                    <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${selectedPayers.includes('individual') ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300'}`}>
+                      {selectedPayers.includes('individual') && <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4"><path d="M20 6 9 17l-5-5"/></svg>}
+                    </div>
+                    <span className="flex-1">Apenas Eu</span>
+                  </button>
+                  <div className="h-px bg-slate-50 my-1 mx-2"></div>
+                  {categories.payers?.map(p => (
+                    <button key={p} onClick={() => togglePayerFilter(p)} className="w-full px-4 py-2.5 text-left text-xs font-bold flex items-center gap-3 hover:bg-slate-50 transition-colors text-slate-700">
+                      <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${selectedPayers.includes(p) ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300'}`}>
+                        {selectedPayers.includes(p) && <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4"><path d="M20 6 9 17l-5-5"/></svg>}
+                      </div>
+                      <span className="flex-1 truncate">{p}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
+
             <button onClick={resetFilters} className="w-full py-2 text-[9px] font-bold text-slate-400 uppercase hover:text-indigo-600 transition-colors">Resetar</button>
           </div>
         </div>
@@ -224,7 +288,6 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
           </div>
         </div>
 
-        {/* Tabela Principal - Colunas Separadas */}
         <div className="hidden md:block print:block print-table-container overflow-x-auto">
           <table className="w-full text-left">
             <thead>
@@ -249,8 +312,8 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
                 } : {};
 
                 let displayVal = t.amount;
-                if (selectedPayer === 'individual' && t.is_split && t.split_details) { displayVal = t.split_details.userPart; }
-                else if (selectedPayer !== 'all' && t.is_split && t.split_details) { displayVal = t.split_details.partnerPart; }
+                if (selectedPayers.length === 1 && selectedPayers[0] === 'individual' && t.is_split && t.split_details) { displayVal = t.split_details.userPart; }
+                else if (selectedPayers.length === 1 && selectedPayers[0] !== 'all' && t.is_split && t.split_details) { displayVal = t.split_details.partnerPart; }
 
                 const card = t.card_id ? cards.find(c => c.id === t.card_id) : null;
                 const account = t.account_id ? accounts.find(a => a.id === t.account_id) : null;
@@ -306,7 +369,6 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
           </table>
         </div>
 
-        {/* Blocos Mobile - Escondidos no PRINT */}
         <div className="md:hidden print:hidden space-y-4">
           {filteredTransactions.map((t) => {
             const style = getCategoryStyles(t.category, categories);
@@ -317,8 +379,8 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
             } : {};
 
             let displayVal = t.amount;
-            if (selectedPayer === 'individual' && t.is_split && t.split_details) { displayVal = t.split_details.userPart; }
-            else if (selectedPayer !== 'all' && t.is_split && t.split_details) { displayVal = t.split_details.partnerPart; }
+            if (selectedPayers.length === 1 && selectedPayers[0] === 'individual' && t.is_split && t.split_details) { displayVal = t.split_details.userPart; }
+            else if (selectedPayers.length === 1 && selectedPayers[0] !== 'all' && t.is_split && t.split_details) { displayVal = t.split_details.partnerPart; }
 
             const accountName = t.account_id ? accounts.find(a => a.id === t.account_id)?.name : null;
             const cardName = t.card_id ? cards.find(c => c.id === t.card_id)?.name : null;
@@ -337,7 +399,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
                 <div className="flex justify-between items-end">
                    <div className="flex items-center gap-3">
                       <div 
-                        className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 ${!style.isCustom ? `${style.bg} ${style.text} ${style.border}` : ''}`}
+                        className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 ${!style.isCustom ? `${style.bg}  ${style.text} ${style.border}` : ''}`}
                         style={inlineStyles}
                       >
                         {getCategoryIcon(t.category, 16)}
