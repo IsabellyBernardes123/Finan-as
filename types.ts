@@ -13,6 +13,14 @@ export interface SplitDetails {
   partnerName: string;
 }
 
+export interface Account {
+  id: string;
+  name: string;
+  type: 'checking' | 'investment' | 'cash' | 'savings' | 'other';
+  initial_balance: number;
+  color: string;
+}
+
 export interface Transaction {
   id: string;
   description: string;
@@ -21,7 +29,8 @@ export interface Transaction {
   category: string;
   date: string;
   payment_date?: string | null;
-  card_id?: string;
+  card_id?: string | null;
+  account_id?: string | null; // Nova vinculação
   is_split?: boolean;
   split_details?: SplitDetails;
   is_paid: boolean;
@@ -34,6 +43,7 @@ export interface CreditCard {
   credit_limit: number;
   closing_day: number;
   due_day: number;
+  account_id?: string | null; // Vinculação com conta para pagamento
 }
 
 export interface Summary {
@@ -46,6 +56,6 @@ export interface UserCategories {
   expense: string[];
   income: string[];
   payers: string[];
-  colors?: Record<string, string>; // Mapeia "Nome da Categoria" -> "#HexColor"
-  icons?: Record<string, string>;  // Mapeia "Nome da Categoria" -> "iconKey"
+  colors?: Record<string, string>;
+  icons?: Record<string, string>;
 }

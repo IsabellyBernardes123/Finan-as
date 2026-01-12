@@ -10,6 +10,7 @@ import Sidebar, { ViewType } from './components/Sidebar';
 import Reports from './components/Reports';
 import CategoryManager from './components/CategoryManager';
 import CardManager from './components/CardManager';
+import AccountManager from './components/AccountManager';
 import PayerManager from './components/PayerManager';
 import PayerReports from './components/PayerReports';
 import DataManagement from './components/DataManagement';
@@ -24,18 +25,26 @@ const App: React.FC = () => {
   const [dbError, setDbError] = useState<string | null>(null);
   
   const { 
-    transactions, cards, categories, 
+    transactions, cards, accounts, categories, 
     addTransaction, updateTransaction, deleteTransaction, togglePaid,
-    addCard, deleteCard, addCategory, updateCategory, deleteCategory, loading: dataLoading
+    addCard, updateCard, deleteCard, 
+    addAccount, deleteAccount,
+    addCategory, updateCategory, deleteCategory, loading: dataLoading
   } = useFinanceData(currentUser?.id || null);
   
   const [currentView, setCurrentView] = useState<ViewType>('dashboard');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
+  // --- States para Modais ---
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [pendingPaymentId, setPendingPaymentId] = useState<string | null>(null);
+  const [pendingPaymentStatus, setPendingPaymentStatus] = useState<boolean>(false); // O status ATUAL
   const [selectedPaymentDate, setSelectedPaymentDate] = useState(new Date().toISOString().split('T')[0]);
+
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null);
+  // --------------------------
   
   const getInitialDates = () => {
     const now = new Date();
@@ -117,26 +126,39 @@ const App: React.FC = () => {
   
   const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
-  const handleTogglePaidRequest = (id: string, isPaid: boolean) => {
-    if (!isPaid) {
-      setPendingPaymentId(id);
-      setSelectedPaymentDate(new Date().toISOString().split('T')[0]);
-      setIsPaymentModalOpen(true);
-    } else {
-      if (window.confirm("Deseja marcar este lançamento como Pendente?")) {
-        togglePaid(id, true, null);
-      }
-    }
+  // --- Handlers dos Modais ---
+  const handleTogglePaidRequest = (id: string, currentStatus: boolean) => {
+    setPendingPaymentId(id);
+    setPendingPaymentStatus(currentStatus);
+    // Se não está pago, sugere hoje. Se já está pago, mantém a data para re-confirmação se necessário (ou ignora)
+    setSelectedPaymentDate(new Date().toISOString().split('T')[0]);
+    setIsPaymentModalOpen(true);
   };
 
-  const confirmPayment = () => {
+  const confirmPaymentStatus = () => {
     if (pendingPaymentId) {
-      const paymentISO = new Date(selectedPaymentDate + 'T12:00:00').toISOString();
-      togglePaid(pendingPaymentId, false, paymentISO);
-      setIsPaymentModalOpen(false);
-      setPendingPaymentId(null);
+      // Se estava FALSE, vira TRUE (Pago) -> envia data
+      // Se estava TRUE, vira FALSE (Pendente) -> data é null (tratado no hook)
+      const newStatus = !pendingPaymentStatus;
+      togglePaid(pendingPaymentId, pendingPaymentStatus, newStatus ? selectedPaymentDate : null);
     }
+    setIsPaymentModalOpen(false);
+    setPendingPaymentId(null);
   };
+
+  const handleDeleteRequest = (id: string) => {
+    setTransactionToDelete(id);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (transactionToDelete) {
+      deleteTransaction(transactionToDelete);
+    }
+    setIsDeleteModalOpen(false);
+    setTransactionToDelete(null);
+  };
+  // --------------------------
 
   const dashboardData = useMemo(() => {
     const filtered = transactions.filter(t => {
@@ -294,7 +316,8 @@ const App: React.FC = () => {
                 <th className="py-4 px-6 text-center">Status</th>
                 <th className="py-4 px-6">Vencimento</th>
                 <th className="py-4 px-6">Descrição / Categoria</th>
-                <th className="py-4 px-6">Pagamento</th>
+                <th className="py-4 px-6">Conta / Origem</th>
+                <th className="py-4 px-6">Método</th>
                 <th className="py-4 px-6">Divisão</th>
                 <th className="py-4 px-6 text-right">Valor</th>
                 <th className="py-4 px-6 w-24 text-center">Ações</th>
@@ -303,6 +326,7 @@ const App: React.FC = () => {
             <tbody className="divide-y divide-slate-50">
               {filtered.map((t) => {
                 const card = t.card_id ? cards.find(c => c.id === t.card_id) : null;
+                const account = t.account_id ? accounts.find(a => a.id === t.account_id) : null;
                 const styles = getCategoryStyles(t.category, categories);
                 const inlineStyles = styles.isCustom ? {
                   backgroundColor: `${styles.customColor}15`,
@@ -338,7 +362,14 @@ const App: React.FC = () => {
                       </div>
                     </td>
                     <td className="py-4 px-6">
-                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-tight">{card ? card.name : 'DINHEIRO/PIX'}</span>
+                       <span className="text-[10px] font-black text-slate-700 uppercase tracking-tight">
+                         {card ? card.name : (account ? account.name : 'CARTEIRA')}
+                       </span>
+                    </td>
+                    <td className="py-4 px-6">
+                       <span className={`text-[9px] font-black uppercase tracking-tight ${card ? 'text-indigo-600' : 'text-slate-500'}`}>
+                         {card ? 'CARTÃO CRÉDITO' : 'DINHEIRO / PIX'}
+                       </span>
                     </td>
                     <td className="py-4 px-6">
                       {t.is_split && t.split_details ? (
@@ -354,7 +385,7 @@ const App: React.FC = () => {
                     <td className="py-4 px-6">
                       <div className="flex justify-center gap-1">
                         <button onClick={() => { setEditingTransaction(t); setIsFormOpen(true); }} className="p-2 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></button>
-                        <button onClick={() => deleteTransaction(t.id)} className="p-2 text-rose-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/></svg></button>
+                        <button onClick={() => handleDeleteRequest(t.id)} className="p-2 text-rose-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/></svg></button>
                       </div>
                     </td>
                   </tr>
@@ -364,9 +395,10 @@ const App: React.FC = () => {
           </table>
         </div>
 
-        <div className="md:hidden space-y-4">
+        <div className="md:hidden space-y-3">
           {filtered.map((t) => {
             const card = t.card_id ? cards.find(c => c.id === t.card_id) : null;
+            const account = t.account_id ? accounts.find(a => a.id === t.account_id) : null;
             const styles = getCategoryStyles(t.category, categories);
             const inlineStyles = styles.isCustom ? {
               backgroundColor: `${styles.customColor}15`,
@@ -375,53 +407,74 @@ const App: React.FC = () => {
             } : {};
 
             return (
-              <div key={t.id} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-3 relative overflow-hidden">
-                <div className="flex justify-between items-start">
-                  <div className="flex flex-col">
-                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Venc: {new Date(t.date).toLocaleDateString('pt-BR')}</span>
-                    {t.is_paid && t.payment_date && (
-                      <span className="text-[9px] font-black text-teal-600 uppercase tracking-widest mt-0.5">Pago: {new Date(t.payment_date).toLocaleDateString('pt-BR')}</span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className={`px-2 py-0.5 rounded-lg text-[7px] font-black uppercase tracking-widest border transition-all ${t.is_paid ? 'bg-teal-50 border-teal-100 text-teal-600' : 'bg-amber-50 border-amber-100 text-amber-600'}`}>
-                      {t.is_paid ? 'Pago' : 'Pendente'}
-                    </span>
-                    <button onClick={() => handleTogglePaidRequest(t.id, t.is_paid)} className={`w-5 h-5 rounded-md flex items-center justify-center border transition-all ${t.is_paid ? 'bg-teal-500 border-teal-500 text-white' : 'bg-white border-slate-200 text-slate-300'}`}>
-                      <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4"><path d="M20 6 9 17l-5-5"/></svg>
-                    </button>
-                  </div>
+              <div key={t.id} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden active:scale-[0.99] transition-transform">
+                {/* Header: Data e Valor */}
+                <div className="flex justify-between items-start mb-3">
+                   <div className="flex flex-col gap-1">
+                      {/* Vencimento */}
+                      <div className="flex items-center gap-1.5 text-slate-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+                        <span className="text-[10px] font-bold uppercase tracking-wide">
+                           Venc: {new Date(t.date).toLocaleDateString('pt-BR')}
+                        </span>
+                      </div>
+
+                      {/* Pagamento (Condicional) */}
+                      {t.is_paid && t.payment_date && (
+                        <div className="flex items-center gap-1.5 text-teal-600 animate-in fade-in slide-in-from-left-2">
+                           <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                           <span className="text-[10px] font-bold uppercase tracking-wide">
+                             Pago: {new Date(t.payment_date).toLocaleDateString('pt-BR')}
+                           </span>
+                        </div>
+                      )}
+                   </div>
+                   <div className="text-right">
+                      <p className={`text-base font-black ${t.type === 'income' ? 'text-teal-600' : 'text-rose-500'}`}>{formatCurrency(t.amount)}</p>
+                   </div>
                 </div>
 
-                <div className="flex items-center gap-3">
+                {/* Conteúdo Principal */}
+                <div className="flex items-center gap-3.5 mb-4">
                   <div 
-                    className={`w-9 h-9 rounded-xl flex items-center justify-center border shrink-0 ${!styles.isCustom ? `${styles.bg} ${styles.text} ${styles.border}` : ''}`}
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center border shrink-0 ${!styles.isCustom ? `${styles.bg} ${styles.text} ${styles.border}` : ''}`}
                     style={inlineStyles}
                   >
                     {getCategoryIcon(t.category, 18, categories)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-black text-slate-900 leading-tight truncate">{t.description}</p>
-                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
-                      {t.category}
-                      <span className="mx-1 opacity-40">•</span>
-                      {card ? card.name : 'Dinheiro/Pix'}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className={`text-sm font-black ${t.type === 'income' ? 'text-teal-600' : 'text-rose-500'}`}>{formatCurrency(t.amount)}</p>
+                    <p className="text-sm font-bold text-slate-800 leading-tight truncate mb-0.5">{t.description}</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight truncate">{t.category}</p>
                   </div>
                 </div>
 
-                <div className="pt-2 border-t border-slate-50 flex justify-end gap-3">
-                  <button onClick={() => { setEditingTransaction(t); setIsFormOpen(true); }} className="text-indigo-400 hover:text-indigo-600 flex items-center gap-1.5 transition-all py-1">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
-                    <span className="text-[8px] font-black uppercase tracking-widest">Editar</span>
-                  </button>
-                  <button onClick={() => deleteTransaction(t.id)} className="text-rose-300 hover:text-rose-500 flex items-center gap-1.5 transition-all py-1">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/></svg>
-                    <span className="text-[8px] font-black uppercase tracking-widest">Excluir</span>
-                  </button>
+                {/* Rodapé: Conta e Ações */}
+                <div className="pt-3 border-t border-slate-50 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                     {/* Origem */}
+                     <div className="px-2.5 py-1 bg-slate-50 rounded-lg border border-slate-100">
+                        <span className="text-[8px] font-black text-slate-500 uppercase tracking-wider truncate max-w-[100px] block">
+                          {card ? card.name : (account ? account.name : 'Carteira')}
+                        </span>
+                     </div>
+                     {/* Status Toggle Clean */}
+                     <button onClick={() => handleTogglePaidRequest(t.id, t.is_paid)} className={`p-1 transition-colors ${t.is_paid ? 'text-teal-500' : 'text-slate-300 hover:text-slate-400'}`}>
+                        {t.is_paid ? (
+                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/></svg>
+                        )}
+                     </button>
+                  </div>
+
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => { setEditingTransaction(t); setIsFormOpen(true); }} className="w-8 h-8 flex items-center justify-center text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-all">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                    </button>
+                    <button onClick={() => handleDeleteRequest(t.id)} className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-full transition-all">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/></svg>
+                    </button>
+                  </div>
                 </div>
               </div>
             );
@@ -498,7 +551,8 @@ const App: React.FC = () => {
       case 'add-expense': return renderTransactionManagement('expense');
       case 'add-income': return renderTransactionManagement('income');
       case 'payers': return <PayerManager categories={categories} onAdd={addCategory} onDelete={deleteCategory} />;
-      case 'cards': return <CardManager cards={cards} transactions={transactions} onAdd={addCard} onDelete={deleteCard} />;
+      case 'cards': return <CardManager cards={cards} accounts={accounts} transactions={transactions} onAdd={addCard} onUpdate={updateCard} onDelete={deleteCard} />;
+      case 'accounts': return <AccountManager accounts={accounts} transactions={transactions} categories={categories} cards={cards} onAdd={addAccount} onDelete={deleteAccount} onTogglePaid={togglePaid} onDeleteTransaction={deleteTransaction} />;
       case 'reports': return <Reports transactions={transactions} categories={categories} />;
       case 'payer-reports': return <PayerReports transactions={transactions} categories={categories} />;
       case 'categories': return <CategoryManager categories={categories} onAdd={addCategory} onUpdate={updateCategory} onDelete={deleteCategory} />;
@@ -510,10 +564,10 @@ const App: React.FC = () => {
   if (!currentUser) return <AuthScreen onSelectUser={setCurrentUser} />;
 
   const viewTitles: Record<string, string> = {
-    'dashboard': 'Visão Geral', 'cards': 'Meus Cartões', 'add-expense': 'Despesas', 'add-income': 'Receitas', 'categories': 'Categorias', 'reports': 'Extrato', 'payers': 'Pagantes', 'payer-reports': 'Acerto de Contas', 'data-management': 'Configurações Avançadas'
+    'dashboard': 'Visão Geral', 'cards': 'Meus Cartões', 'accounts': 'Minhas Contas', 'add-expense': 'Despesas', 'add-income': 'Receitas', 'categories': 'Categorias', 'reports': 'Extrato', 'payers': 'Pagantes', 'payer-reports': 'Acerto de Contas', 'data-management': 'Configurações Avançadas'
   };
 
-  const showNewTransactionButton = !['dashboard', 'reports', 'payer-reports', 'data-management', 'cards'].includes(currentView);
+  const showNewTransactionButton = !['dashboard', 'reports', 'payer-reports', 'data-management', 'cards', 'accounts'].includes(currentView);
 
   return (
     <div className="flex min-h-screen bg-slate-50/50">
@@ -534,6 +588,78 @@ const App: React.FC = () => {
             <div className="w-full max-w-4xl mx-auto">
               <TransactionForm onAdd={addTransaction} onUpdate={updateTransaction} editingTransaction={editingTransaction} categories={categories} cards={cards} onCancel={() => setIsFormOpen(false)} initialType={currentView === 'add-income' ? 'income' : 'expense'} />
             </div>
+          </div>
+        )}
+
+        {/* Modal de Confirmação de Pagamento */}
+        {isPaymentModalOpen && (
+          <div className="fixed inset-0 z-[70] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+            <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-sm w-full animate-in zoom-in-95">
+              <h3 className="text-lg font-bold text-slate-900 mb-2">
+                {pendingPaymentStatus ? 'Reabrir Lançamento?' : 'Confirmar Pagamento?'}
+              </h3>
+              <p className="text-xs text-slate-500 mb-6 font-medium">
+                {pendingPaymentStatus 
+                  ? 'Isso marcará a transação como PENDENTE novamente.' 
+                  : 'Informe a data que o pagamento foi realizado.'}
+              </p>
+              
+              {!pendingPaymentStatus && (
+                <div className="mb-6">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5 ml-1">Data do Pagamento</label>
+                  <input 
+                    type="date" 
+                    value={selectedPaymentDate} 
+                    onChange={e => setSelectedPaymentDate(e.target.value)}
+                    className="w-full px-4 py-3 bg-slate-50 rounded-xl text-sm font-bold text-slate-900 outline-none border border-transparent focus:border-indigo-100"
+                  />
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setIsPaymentModalOpen(false)} 
+                  className="flex-1 py-3 text-slate-400 font-bold text-[10px] uppercase tracking-widest hover:text-slate-600 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={confirmPaymentStatus} 
+                  className={`flex-1 ${pendingPaymentStatus ? 'bg-amber-500 hover:bg-amber-600' : 'bg-teal-600 hover:bg-teal-700'} text-white rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-lg transition-all active:scale-95`}
+                >
+                  Confirmar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal de Confirmação de Exclusão */}
+        {isDeleteModalOpen && (
+          <div className="fixed inset-0 z-[70] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+             <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-sm w-full animate-in zoom-in-95 border border-rose-100">
+                <div className="w-12 h-12 bg-rose-50 rounded-full flex items-center justify-center text-rose-500 mb-4 mx-auto">
+                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 mb-2 text-center">Excluir Lançamento?</h3>
+                <p className="text-xs text-slate-500 mb-6 font-medium text-center">
+                  Tem certeza que deseja remover este item? Esta ação não pode ser desfeita.
+                </p>
+                <div className="flex gap-3">
+                  <button 
+                    onClick={() => setIsDeleteModalOpen(false)} 
+                    className="flex-1 py-3 text-slate-400 font-bold text-[10px] uppercase tracking-widest hover:text-slate-600 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    onClick={confirmDelete} 
+                    className="flex-1 bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-lg shadow-rose-100 transition-all active:scale-95"
+                  >
+                    Sim, Excluir
+                  </button>
+                </div>
+             </div>
           </div>
         )}
 
