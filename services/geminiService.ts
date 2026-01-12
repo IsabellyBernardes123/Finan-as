@@ -9,16 +9,17 @@ export interface AIInsightResponse {
 }
 
 export const getFinancialInsights = async (transactions: Transaction[]): Promise<AIInsightResponse | string> => {
-  if (transactions.length < 3) return "Adicione pelo menos 3 transações para que eu possa analisar seus padrões financeiros.";
+  if (transactions.length < 3) return "Adicione pelo menos 3 transações para que eu possa analisar seu equilíbrio financeiro.";
 
-  // Segurança: Verifica se a chave existe antes de tentar instanciar
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) {
-    return "IA não disponível: Chave de API Gemini não configurada no ambiente.";
-  }
+  // Consolidação de dados para dar contexto macro à IA
+  const totals = transactions.reduce((acc, t) => {
+    if (t.type === 'income') acc.income += t.amount;
+    else acc.expense += t.amount;
+    return acc;
+  }, { income: 0, expense: 0 });
 
-  const summary = transactions.map(t => ({
-    tipo: t.type === 'income' ? 'Entrada' : 'Saída',
+  const summary = transactions.slice(0, 20).map(t => ({
+    tipo: t.type === 'income' ? 'Ganho' : 'Gasto',
     valor: t.amount,
     categoria: t.category,
     descricao: t.description,
@@ -26,35 +27,41 @@ export const getFinancialInsights = async (transactions: Transaction[]): Promise
     data: t.date.split('T')[0]
   }));
 
-  const prompt = `Analise o seguinte histórico de transações financeiras e forneça insights estruturados em português.
-  IMPORTANTE: Use uma linguagem muito simples, como se estivesse conversando com um amigo. Evite palavras difíceis ou termos técnicos de economia. Seja direto e use frases curtas.
-  Histórico: ${JSON.stringify(summary)}`;
+  const prompt = `
+    Contexto Geral: Ganhos Totais R$ ${totals.income.toFixed(2)}, Gastos Totais R$ ${totals.expense.toFixed(2)}.
+    Saldo Atual: R$ ${(totals.income - totals.expense).toFixed(2)}.
+    
+    Transações Recentes: ${JSON.stringify(summary)}.
+    
+    Analise o equilíbrio entre Necessidades, Lazer e Investimento. 
+    Seja específico sobre quais categorias estão pesando mais e como equilibrar sem sacrificar a qualidade de vida.
+  `;
 
   try {
-    // Instanciação segura dentro da função
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
+    const result = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
       contents: prompt,
       config: {
-        systemInstruction: "Você é um consultor financeiro amigável que explica as coisas de forma simples e direta. Use palavras fáceis, evite jargões técnicos complexos e fale de um jeito que qualquer pessoa consiga entender. Sua missão é analisar os dados e dar dicas práticas e fáceis de seguir.",
+        systemInstruction: `
+          Você é um Consultor Financeiro Estratégico com foco em Equilíbrio de Vida. 
+          Seu objetivo é ajudar o usuário a ter uma vida rica hoje enquanto constrói segurança para amanhã.
+          
+          REGRAS DE ANÁLISE:
+          1. Use tom motivador, porém realista.
+          2. No campo 'analysis', identifique o padrão atual (ex: gastos excessivos com lazer ou falta de diversidade nos ganhos).
+          3. No campo 'savings', sugira cortes que NÃO tirem a felicidade do usuário (trocas inteligentes).
+          4. No campo 'tip', dê um conselho estratégico sobre reserva de emergência ou metas de longo prazo baseado no saldo atual.
+          5. Mantenha as respostas curtas (máximo 2 frases por campo).
+        `,
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            analysis: {
-              type: Type.STRING,
-              description: "Uma explicação simples de como está o dinheiro hoje.",
-            },
-            savings: {
-              type: Type.STRING,
-              description: "Uma dica fácil de onde dá para gastar menos.",
-            },
-            tip: {
-              type: Type.STRING,
-              description: "Um conselho amigável para o futuro financeiro.",
-            },
+            analysis: { type: Type.STRING, description: "Análise do equilíbrio atual entre vida e finanças." },
+            savings: { type: Type.STRING, description: "Sugestão de otimização de gastos sem perda de bem-estar." },
+            tip: { type: Type.STRING, description: "Dica estratégica para o futuro financeiro." },
           },
           required: ["analysis", "savings", "tip"],
         },
@@ -62,17 +69,13 @@ export const getFinancialInsights = async (transactions: Transaction[]): Promise
       },
     });
 
-    const text = response.text;
+    const text = result.text;
     if (text) {
-      try {
-        return JSON.parse(text) as AIInsightResponse;
-      } catch (e) {
-        return "Erro ao processar análise da IA.";
-      }
+      return JSON.parse(text) as AIInsightResponse;
     }
-    return "Não foi possível gerar insights no momento.";
-  } catch (error) {
-    console.error("Gemini Error:", error);
-    return "Erro de conexão com a IA. Verifique sua chave de API ou tente novamente mais tarde.";
+    return "Não consegui equilibrar os dados agora. Tente novamente.";
+  } catch (error: any) {
+    console.error("Gemini API Error:", error);
+    return "Erro de conexão com o consultor estratégico. Verifique sua rede.";
   }
 };
