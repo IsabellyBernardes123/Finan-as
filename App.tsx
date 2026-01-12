@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from './services/supabaseClient';
 import { useFinanceData } from './hooks/useFinanceData';
 import SummaryCards from './components/SummaryCards';
@@ -39,13 +39,13 @@ const App: React.FC = () => {
   // --- States para Modais ---
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [pendingPaymentId, setPendingPaymentId] = useState<string | null>(null);
-  const [pendingPaymentStatus, setPendingPaymentStatus] = useState<boolean>(false); // O status ATUAL
+  const [pendingPaymentStatus, setPendingPaymentStatus] = useState<boolean>(false);
   const [selectedPaymentDate, setSelectedPaymentDate] = useState(new Date().toISOString().split('T')[0]);
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null);
-  // --------------------------
   
+  // --- States de Filtro ---
   const getInitialDates = () => {
     const now = new Date();
     const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
@@ -57,9 +57,22 @@ const App: React.FC = () => {
   const [startDate, setStartDate] = useState(initStart);
   const [endDate, setEndDate] = useState(initEnd);
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [selectedPayer, setSelectedPayer] = useState('all');
+  const [selectedPayers, setSelectedPayers] = useState<string[]>(['all']);
   const [statusFilter, setStatusFilter] = useState<'all' | 'paid' | 'pending'>('all');
   const [isFiltersVisible, setIsFiltersVisible] = useState(false);
+  const [isPayerDropdownOpen, setIsPayerDropdownOpen] = useState(false);
+  const payerDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Fecha dropdown ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (payerDropdownRef.current && !payerDropdownRef.current.contains(event.target as Node)) {
+        setIsPayerDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -126,19 +139,15 @@ const App: React.FC = () => {
   
   const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
-  // --- Handlers dos Modais ---
   const handleTogglePaidRequest = (id: string, currentStatus: boolean) => {
     setPendingPaymentId(id);
     setPendingPaymentStatus(currentStatus);
-    // Se não está pago, sugere hoje. Se já está pago, mantém a data para re-confirmação se necessário (ou ignora)
     setSelectedPaymentDate(new Date().toISOString().split('T')[0]);
     setIsPaymentModalOpen(true);
   };
 
   const confirmPaymentStatus = () => {
     if (pendingPaymentId) {
-      // Se estava FALSE, vira TRUE (Pago) -> envia data
-      // Se estava TRUE, vira FALSE (Pendente) -> data é null (tratado no hook)
       const newStatus = !pendingPaymentStatus;
       togglePaid(pendingPaymentId, pendingPaymentStatus, newStatus ? selectedPaymentDate : null);
     }
@@ -158,7 +167,20 @@ const App: React.FC = () => {
     setIsDeleteModalOpen(false);
     setTransactionToDelete(null);
   };
-  // --------------------------
+
+  const togglePayerFilter = (payerId: string) => {
+    setSelectedPayers(prev => {
+      if (payerId === 'all') return ['all'];
+      
+      const newFilters = prev.filter(f => f !== 'all');
+      if (newFilters.includes(payerId)) {
+        const filtered = newFilters.filter(f => f !== payerId);
+        return filtered.length === 0 ? ['all'] : filtered;
+      } else {
+        return [...newFilters, payerId];
+      }
+    });
+  };
 
   const dashboardData = useMemo(() => {
     const filtered = transactions.filter(t => {
@@ -167,18 +189,20 @@ const App: React.FC = () => {
       const matchesCategory = selectedCategory === 'all' || t.category === selectedCategory;
       const matchesStatus = statusFilter === 'all' || (statusFilter === 'paid' ? t.is_paid : !t.is_paid);
       
-      let matchesPayer = true;
-      if (selectedPayer === 'individual') matchesPayer = true;
-      else if (selectedPayer !== 'all') matchesPayer = t.is_split && t.split_details?.partnerName === selectedPayer;
+      let matchesPayer = selectedPayers.includes('all');
+      if (!matchesPayer) {
+        if (selectedPayers.includes('individual') && !t.is_split) matchesPayer = true;
+        if (t.is_split && selectedPayers.includes(t.split_details?.partnerName || '')) matchesPayer = true;
+      }
       
       return matchesDate && matchesCategory && matchesPayer && matchesStatus;
     });
 
     const summary: Summary = filtered.reduce((acc, t) => {
       let amt = Number(t.amount);
-      if (selectedPayer === 'individual' && t.is_split && t.split_details) {
+      if (selectedPayers.length === 1 && selectedPayers[0] === 'individual' && t.is_split && t.split_details) {
         amt = Number(t.split_details.userPart);
-      } else if (selectedPayer !== 'all' && t.is_split && t.split_details) {
+      } else if (selectedPayers.length === 1 && selectedPayers[0] !== 'all' && t.is_split && t.split_details) {
         amt = Number(t.split_details.partnerPart);
       }
 
@@ -214,14 +238,21 @@ const App: React.FC = () => {
     }, {});
 
     return { filteredTransactions: filtered, summary, cardSummaries: Object.values(groupedByCard) };
-  }, [transactions, startDate, endDate, selectedCategory, selectedPayer, statusFilter, cards]);
+  }, [transactions, startDate, endDate, selectedCategory, selectedPayers, statusFilter, cards]);
 
   const renderFilterBar = () => {
     const allCategories = Array.from(new Set([...categories.expense, ...categories.income])).sort();
+    
+    const getPayerButtonLabel = () => {
+      if (selectedPayers.includes('all')) return 'Todos';
+      if (selectedPayers.length === 1) {
+        return selectedPayers[0] === 'individual' ? 'Apenas Eu' : selectedPayers[0];
+      }
+      return `${selectedPayers.length} Selecionados`;
+    };
 
     return (
-      <div className="bg-white rounded-xl border border-slate-100 shadow-sm mb-6 overflow-hidden">
-        {/* Mobile Toggle Button */}
+      <div className="bg-white rounded-xl border border-slate-100 shadow-sm mb-6 relative z-30">
         <button 
           onClick={() => setIsFiltersVisible(!isFiltersVisible)}
           className="w-full px-4 py-3 flex items-center justify-between lg:hidden transition-colors hover:bg-slate-50 border-b border-transparent data-[open=true]:border-slate-100"
@@ -238,8 +269,7 @@ const App: React.FC = () => {
           </svg>
         </button>
 
-        {/* Filter Content */}
-        <div className={`p-4 ${isFiltersVisible ? 'block animate-in slide-in-from-top-2 duration-300' : 'hidden lg:block'}`}>
+        <div className={`p-4 ${isFiltersVisible ? 'block' : 'hidden lg:block'}`}>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 items-end">
             <div>
               <label className="text-[9px] font-bold text-slate-400 uppercase mb-1.5 block">Início</label>
@@ -249,14 +279,54 @@ const App: React.FC = () => {
               <label className="text-[9px] font-bold text-slate-400 uppercase mb-1.5 block">Fim</label>
               <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full bg-slate-50 border-none rounded-md px-3 py-2 text-xs font-bold text-indigo-600 outline-none" />
             </div>
-            <div>
-              <label className="text-[9px] font-bold text-slate-400 uppercase mb-1.5 block">Pagante</label>
-              <select value={selectedPayer} onChange={(e) => setSelectedPayer(e.target.value)} className="w-full bg-slate-50 border-none rounded-md px-4 py-2 text-xs font-bold text-slate-700 outline-none">
-                <option value="all">Todos</option>
-                <option value="individual">Apenas Eu</option>
-                {categories.payers?.map(p => <option key={p} value={p}>{p}</option>)}
-              </select>
+            
+            <div className="relative" ref={payerDropdownRef}>
+              <label className="text-[9px] font-bold text-slate-400 uppercase mb-1.5 block">Pagantes</label>
+              <button 
+                onClick={() => setIsPayerDropdownOpen(!isPayerDropdownOpen)}
+                className="w-full bg-slate-50 rounded-md px-4 py-2 text-xs font-bold text-slate-700 flex items-center justify-between border border-transparent hover:border-indigo-100 transition-colors"
+              >
+                <span className="truncate">{getPayerButtonLabel()}</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-slate-300 ml-1"><path d="m6 9 6 6 6-6"/></svg>
+              </button>
+              
+              {isPayerDropdownOpen && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-slate-100 z-50 py-2 animate-in fade-in zoom-in-95 duration-200 min-w-[200px]">
+                  <button 
+                    onClick={() => togglePayerFilter('all')}
+                    className="w-full px-4 py-2.5 text-left text-xs font-bold flex items-center gap-3 hover:bg-slate-50 transition-colors text-slate-700"
+                  >
+                    <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors shrink-0 ${selectedPayers.includes('all') ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300'}`}>
+                      {selectedPayers.includes('all') && <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4"><path d="M20 6 9 17l-5-5"/></svg>}
+                    </div>
+                    <span className="flex-1">Todos</span>
+                  </button>
+                  <button 
+                    onClick={() => togglePayerFilter('individual')}
+                    className="w-full px-4 py-2.5 text-left text-xs font-bold flex items-center gap-3 hover:bg-slate-50 transition-colors text-slate-700"
+                  >
+                    <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors shrink-0 ${selectedPayers.includes('individual') ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300'}`}>
+                      {selectedPayers.includes('individual') && <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4"><path d="M20 6 9 17l-5-5"/></svg>}
+                    </div>
+                    <span className="flex-1">Apenas Eu</span>
+                  </button>
+                  <div className="h-px bg-slate-50 my-1 mx-2"></div>
+                  {categories.payers?.map(p => (
+                    <button 
+                      key={p}
+                      onClick={() => togglePayerFilter(p)}
+                      className="w-full px-4 py-2.5 text-left text-xs font-bold flex items-center gap-3 hover:bg-slate-50 transition-colors text-slate-700"
+                    >
+                      <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors shrink-0 ${selectedPayers.includes(p) ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300'}`}>
+                        {selectedPayers.includes(p) && <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4"><path d="M20 6 9 17l-5-5"/></svg>}
+                      </div>
+                      <span className="flex-1 truncate">{p}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
+
             <div>
               <label className="text-[9px] font-bold text-slate-400 uppercase mb-1.5 block">Status</label>
               <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as any)} className="w-full bg-slate-50 border-none rounded-md px-4 py-2 text-xs font-bold text-slate-700 outline-none">
@@ -278,7 +348,7 @@ const App: React.FC = () => {
                 setStartDate(firstDay); 
                 setEndDate(lastDay); 
                 setSelectedCategory('all');
-                setSelectedPayer('all');
+                setSelectedPayers(['all']);
                 setStatusFilter('all');
                 if (window.innerWidth < 1024) setIsFiltersVisible(false);
               }} 
@@ -301,7 +371,13 @@ const App: React.FC = () => {
         if (selectedCategory !== 'all' && t.category !== selectedCategory) return false;
         if (statusFilter === 'paid' && !t.is_paid) return false;
         if (statusFilter === 'pending' && t.is_paid) return false;
-        return true;
+        
+        let matchesPayer = selectedPayers.includes('all');
+        if (!matchesPayer) {
+           if (selectedPayers.includes('individual') && !t.is_split) matchesPayer = true;
+           if (t.is_split && selectedPayers.includes(t.split_details?.partnerName || '')) matchesPayer = true;
+        }
+        return matchesPayer;
       })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
@@ -313,7 +389,7 @@ const App: React.FC = () => {
           <table className="w-full text-left">
             <thead>
               <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-50 bg-slate-50/30">
-                <th className="py-4 px-6 text-center">Status</th>
+                <th className="py-4 px-6 text-center w-16">Status</th>
                 <th className="py-4 px-6">Vencimento</th>
                 <th className="py-4 px-6">Descrição / Categoria</th>
                 <th className="py-4 px-6">Conta / Origem</th>
@@ -408,18 +484,14 @@ const App: React.FC = () => {
 
             return (
               <div key={t.id} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden active:scale-[0.99] transition-transform">
-                {/* Header: Data e Valor */}
                 <div className="flex justify-between items-start mb-3">
                    <div className="flex flex-col gap-1">
-                      {/* Vencimento */}
                       <div className="flex items-center gap-1.5 text-slate-400">
                         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
                         <span className="text-[10px] font-bold uppercase tracking-wide">
                            Venc: {new Date(t.date).toLocaleDateString('pt-BR')}
                         </span>
                       </div>
-
-                      {/* Pagamento (Condicional) */}
                       {t.is_paid && t.payment_date && (
                         <div className="flex items-center gap-1.5 text-teal-600 animate-in fade-in slide-in-from-left-2">
                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
@@ -434,7 +506,6 @@ const App: React.FC = () => {
                    </div>
                 </div>
 
-                {/* Conteúdo Principal */}
                 <div className="flex items-center gap-3.5 mb-4">
                   <div 
                     className={`w-10 h-10 rounded-xl flex items-center justify-center border shrink-0 ${!styles.isCustom ? `${styles.bg} ${styles.text} ${styles.border}` : ''}`}
@@ -448,16 +519,13 @@ const App: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Rodapé: Conta e Ações */}
                 <div className="pt-3 border-t border-slate-50 flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                     {/* Origem */}
                      <div className="px-2.5 py-1 bg-slate-50 rounded-lg border border-slate-100">
                         <span className="text-[8px] font-black text-slate-500 uppercase tracking-wider truncate max-w-[100px] block">
                           {card ? card.name : (account ? account.name : 'Carteira')}
                         </span>
                      </div>
-                     {/* Status Toggle Clean */}
                      <button onClick={() => handleTogglePaidRequest(t.id, t.is_paid)} className={`p-1 transition-colors ${t.is_paid ? 'text-teal-500' : 'text-slate-300 hover:text-slate-400'}`}>
                         {t.is_paid ? (
                           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
@@ -466,7 +534,6 @@ const App: React.FC = () => {
                         )}
                      </button>
                   </div>
-
                   <div className="flex items-center gap-1">
                     <button onClick={() => { setEditingTransaction(t); setIsFormOpen(true); }} className="w-8 h-8 flex items-center justify-center text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-all">
                       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
@@ -591,7 +658,6 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* Modal de Confirmação de Pagamento */}
         {isPaymentModalOpen && (
           <div className="fixed inset-0 z-[70] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
             <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-sm w-full animate-in zoom-in-95">
@@ -603,7 +669,6 @@ const App: React.FC = () => {
                   ? 'Isso marcará a transação como PENDENTE novamente.' 
                   : 'Informe a data que o pagamento foi realizado.'}
               </p>
-              
               {!pendingPaymentStatus && (
                 <div className="mb-6">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5 ml-1">Data do Pagamento</label>
@@ -615,49 +680,25 @@ const App: React.FC = () => {
                   />
                 </div>
               )}
-
               <div className="flex gap-3">
-                <button 
-                  onClick={() => setIsPaymentModalOpen(false)} 
-                  className="flex-1 py-3 text-slate-400 font-bold text-[10px] uppercase tracking-widest hover:text-slate-600 transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button 
-                  onClick={confirmPaymentStatus} 
-                  className={`flex-1 ${pendingPaymentStatus ? 'bg-amber-500 hover:bg-amber-600' : 'bg-teal-600 hover:bg-teal-700'} text-white rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-lg transition-all active:scale-95`}
-                >
-                  Confirmar
-                </button>
+                <button onClick={() => setIsPaymentModalOpen(false)} className="flex-1 py-3 text-slate-400 font-bold text-[10px] uppercase tracking-widest hover:text-slate-600 transition-colors">Cancelar</button>
+                <button onClick={confirmPaymentStatus} className={`flex-1 ${pendingPaymentStatus ? 'bg-amber-500 hover:bg-amber-600' : 'bg-teal-600 hover:bg-teal-700'} text-white rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-lg transition-all active:scale-95`}>Confirmar</button>
               </div>
             </div>
           </div>
         )}
 
-        {/* Modal de Confirmação de Exclusão */}
         {isDeleteModalOpen && (
           <div className="fixed inset-0 z-[70] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
              <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-sm w-full animate-in zoom-in-95 border border-rose-100">
                 <div className="w-12 h-12 bg-rose-50 rounded-full flex items-center justify-center text-rose-500 mb-4 mx-auto">
-                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/></svg>
                 </div>
                 <h3 className="text-lg font-bold text-slate-900 mb-2 text-center">Excluir Lançamento?</h3>
-                <p className="text-xs text-slate-500 mb-6 font-medium text-center">
-                  Tem certeza que deseja remover este item? Esta ação não pode ser desfeita.
-                </p>
+                <p className="text-xs text-slate-500 mb-6 font-medium text-center">Tem certeza que deseja remover este item? Esta ação não pode ser desfeita.</p>
                 <div className="flex gap-3">
-                  <button 
-                    onClick={() => setIsDeleteModalOpen(false)} 
-                    className="flex-1 py-3 text-slate-400 font-bold text-[10px] uppercase tracking-widest hover:text-slate-600 transition-colors"
-                  >
-                    Cancelar
-                  </button>
-                  <button 
-                    onClick={confirmDelete} 
-                    className="flex-1 bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-lg shadow-rose-100 transition-all active:scale-95"
-                  >
-                    Sim, Excluir
-                  </button>
+                  <button onClick={() => setIsDeleteModalOpen(false)} className="flex-1 py-3 text-slate-400 font-bold text-[10px] uppercase tracking-widest hover:text-slate-600 transition-colors">Cancelar</button>
+                  <button onClick={confirmDelete} className="flex-1 bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-lg shadow-rose-100 transition-all active:scale-95">Sim, Excluir</button>
                 </div>
              </div>
           </div>
