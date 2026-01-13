@@ -13,7 +13,6 @@ import CardManager from './components/CardManager';
 import AccountManager from './components/AccountManager';
 import PayerManager from './components/PayerManager';
 import PayerReports from './components/PayerReports';
-import DataManagement from './components/DataManagement';
 import AuthScreen from './components/AuthScreen';
 import Logo from './components/Logo';
 import { TransactionType, User, Summary, Transaction } from './types';
@@ -252,7 +251,7 @@ const App: React.FC = () => {
     };
 
     return (
-      <div className="bg-white rounded-xl border border-slate-100 shadow-sm mb-6 relative z-30">
+      <div className="bg-white rounded-lg border border-slate-100 shadow-sm mb-6 relative z-30">
         <button 
           onClick={() => setIsFiltersVisible(!isFiltersVisible)}
           className="w-full px-4 py-3 flex items-center justify-between lg:hidden transition-colors hover:bg-slate-50 border-b border-transparent data-[open=true]:border-slate-100"
@@ -291,7 +290,7 @@ const App: React.FC = () => {
               </button>
               
               {isPayerDropdownOpen && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-slate-100 z-50 py-2 animate-in fade-in zoom-in-95 duration-200 min-w-[200px]">
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-2xl border border-slate-100 z-50 py-2 animate-in fade-in zoom-in-95 duration-200 min-w-[200px]">
                   <button 
                     onClick={() => togglePayerFilter('all')}
                     className="w-full px-4 py-2.5 text-left text-xs font-bold flex items-center gap-3 hover:bg-slate-50 transition-colors text-slate-700"
@@ -385,7 +384,7 @@ const App: React.FC = () => {
       <div className="space-y-4 max-w-full mx-auto pb-24 md:pb-0">
         {renderFilterBar()}
 
-        <div className="hidden md:block bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+        <div className="hidden md:block bg-white rounded-lg border border-slate-100 shadow-sm overflow-hidden">
           <table className="w-full text-left">
             <thead>
               <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-50 bg-slate-50/30">
@@ -413,7 +412,7 @@ const App: React.FC = () => {
                 return (
                   <tr key={t.id} className="hover:bg-slate-50/50 transition-colors group">
                     <td className="py-4 px-6">
-                      <button onClick={() => handleTogglePaidRequest(t.id, t.is_paid)} className={`w-6 h-6 rounded-lg flex items-center justify-center border-2 mx-auto transition-all ${t.is_paid ? 'bg-teal-500 border-teal-500 text-white' : 'bg-white border-slate-200 text-slate-200 hover:border-teal-300'}`}>
+                      <button onClick={() => handleTogglePaidRequest(t.id, t.is_paid)} className={`w-6 h-6 rounded flex items-center justify-center border-2 mx-auto transition-all ${t.is_paid ? 'bg-teal-500 border-teal-500 text-white' : 'bg-white border-slate-200 text-slate-200 hover:border-teal-300'}`}>
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4"><path d="M20 6 9 17l-5-5"/></svg>
                       </button>
                     </td>
@@ -426,7 +425,7 @@ const App: React.FC = () => {
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-3">
                         <div 
-                          className={`w-9 h-9 rounded-xl flex items-center justify-center border ${!styles.isCustom ? `${styles.bg} ${styles.text} ${styles.border}` : ''}`}
+                          className={`w-9 h-9 rounded-lg flex items-center justify-center border ${!styles.isCustom ? `${styles.bg} ${styles.text} ${styles.border}` : ''}`}
                           style={inlineStyles}
                         >
                           {getCategoryIcon(t.category, 18, categories)}
@@ -460,8 +459,8 @@ const App: React.FC = () => {
                     <td className={`py-4 px-6 text-right text-sm font-black ${t.type === 'income' ? 'text-teal-600' : 'text-rose-500'}`}>{formatCurrency(t.amount)}</td>
                     <td className="py-4 px-6">
                       <div className="flex justify-center gap-1">
-                        <button onClick={() => { setEditingTransaction(t); setIsFormOpen(true); }} className="p-2 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></button>
-                        <button onClick={() => handleDeleteRequest(t.id)} className="p-2 text-rose-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/></svg></button>
+                        <button onClick={() => { setEditingTransaction(t); setIsFormOpen(true); }} className="p-2 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-all"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></button>
+                        <button onClick={() => handleDeleteRequest(t.id)} className="p-2 text-rose-300 hover:text-rose-500 hover:bg-rose-50 rounded-md transition-all"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/></svg></button>
                       </div>
                     </td>
                   </tr>
@@ -483,7 +482,7 @@ const App: React.FC = () => {
             } : {};
 
             return (
-              <div key={t.id} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden active:scale-[0.99] transition-transform">
+              <div key={t.id} className="bg-white p-4 rounded-lg border border-slate-100 shadow-sm relative overflow-hidden active:scale-[0.99] transition-transform">
                 <div className="flex justify-between items-start mb-3">
                    <div className="flex flex-col gap-1">
                       <div className="flex items-center gap-1.5 text-slate-400">
@@ -508,7 +507,7 @@ const App: React.FC = () => {
 
                 <div className="flex items-center gap-3.5 mb-4">
                   <div 
-                    className={`w-10 h-10 rounded-xl flex items-center justify-center border shrink-0 ${!styles.isCustom ? `${styles.bg} ${styles.text} ${styles.border}` : ''}`}
+                    className={`w-10 h-10 rounded-lg flex items-center justify-center border shrink-0 ${!styles.isCustom ? `${styles.bg} ${styles.text} ${styles.border}` : ''}`}
                     style={inlineStyles}
                   >
                     {getCategoryIcon(t.category, 18, categories)}
@@ -521,7 +520,7 @@ const App: React.FC = () => {
 
                 <div className="pt-3 border-t border-slate-50 flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                     <div className="px-2.5 py-1 bg-slate-50 rounded-lg border border-slate-100">
+                     <div className="px-2.5 py-1 bg-slate-50 rounded border border-slate-100">
                         <span className="text-[8px] font-black text-slate-500 uppercase tracking-wider truncate max-w-[100px] block">
                           {card ? card.name : (account ? account.name : 'Carteira')}
                         </span>
@@ -561,19 +560,13 @@ const App: React.FC = () => {
         return (
           <div className="space-y-6 md:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-24 md:pb-0">
             {dbError && (
-              <div className="p-5 bg-rose-600 rounded-[32px] shadow-2xl shadow-rose-100 flex flex-col md:flex-row items-center gap-6 border border-rose-500 animate-in zoom-in-95">
-                <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center text-white shrink-0">
+              <div className="p-5 bg-rose-600 rounded-xl shadow-2xl shadow-rose-100 flex flex-col md:flex-row items-center gap-6 border border-rose-500 animate-in zoom-in-95">
+                <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center text-white shrink-0">
                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
                 </div>
                 <div className="flex-1 text-center md:text-left">
                   <p className="text-xs font-black text-white uppercase tracking-widest leading-relaxed">{dbError}</p>
                 </div>
-                <button 
-                  onClick={() => setCurrentView('data-management')}
-                  className="px-6 py-3 bg-white text-rose-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-50 transition-all shadow-lg active:scale-95"
-                >
-                  Como Corrigir?
-                </button>
               </div>
             )}
 
@@ -593,11 +586,11 @@ const App: React.FC = () => {
                 <Charts transactions={dashboardData.filteredTransactions} categories={categories} />
               </div>
               <div className="lg:col-span-4">
-                <div className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 h-full">
+                <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-100 h-full">
                   <h2 className="text-[10px] font-black text-slate-900 tracking-tight uppercase mb-6 border-b border-slate-50 pb-3">Extrato por Pagante</h2>
                   <div className="space-y-3">
                     {dashboardData.cardSummaries.map((card: any) => (
-                      <div key={card.cardId || 'cash'} className="p-4 bg-slate-50/40 rounded-2xl border border-slate-100">
+                      <div key={card.cardId || 'cash'} className="p-4 bg-slate-50/40 rounded-lg border border-slate-100">
                         <div className="flex justify-between items-start mb-4">
                           <h4 className="font-black text-[10px] text-slate-900 uppercase tracking-widest">{card.description}</h4>
                         </div>
@@ -623,7 +616,6 @@ const App: React.FC = () => {
       case 'reports': return <Reports transactions={transactions} categories={categories} />;
       case 'payer-reports': return <PayerReports transactions={transactions} categories={categories} />;
       case 'categories': return <CategoryManager categories={categories} onAdd={addCategory} onUpdate={updateCategory} onDelete={deleteCategory} />;
-      case 'data-management': return <DataManagement userId={currentUser!.id} transactions={transactions} cards={cards} categories={categories} onRefresh={() => window.location.reload()} />;
     }
   };
 
@@ -631,19 +623,28 @@ const App: React.FC = () => {
   if (!currentUser) return <AuthScreen onSelectUser={setCurrentUser} />;
 
   const viewTitles: Record<string, string> = {
-    'dashboard': 'Visão Geral', 'cards': 'Meus Cartões', 'accounts': 'Minhas Contas', 'add-expense': 'Despesas', 'add-income': 'Receitas', 'categories': 'Categorias', 'reports': 'Extrato', 'payers': 'Pagantes', 'payer-reports': 'Acerto de Contas', 'data-management': 'Configurações Avançadas'
+    'dashboard': 'Visão Geral', 'cards': 'Meus Cartões', 'accounts': 'Minhas Contas', 'add-expense': 'Despesas', 'add-income': 'Receitas', 'categories': 'Categorias', 'reports': 'Extrato', 'payers': 'Pagantes', 'payer-reports': 'Acerto de Contas'
   };
 
-  const showNewTransactionButton = !['dashboard', 'reports', 'payer-reports', 'data-management', 'cards', 'accounts'].includes(currentView);
+  const showNewTransactionButton = !['dashboard', 'reports', 'payer-reports', 'cards', 'accounts'].includes(currentView);
 
   return (
     <div className="flex min-h-screen bg-slate-50/50">
-      <Sidebar currentView={currentView} onViewChange={setCurrentView} currentUser={currentUser} onLogout={handleLogout} />
+      <Sidebar 
+        currentView={currentView} 
+        onViewChange={setCurrentView} 
+        onAddClick={() => { setEditingTransaction(null); setIsFormOpen(true); }}
+        currentUser={currentUser} 
+        onLogout={handleLogout} 
+      />
       <main className="flex-1 p-4 md:p-8 w-full max-w-7xl mx-auto">
         <header className="mb-6 md:mb-10 flex flex-col items-center text-center">
           <h2 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight uppercase">{viewTitles[currentView]}</h2>
           {showNewTransactionButton && (
-            <button onClick={() => { setEditingTransaction(null); setIsFormOpen(true); }} className="mt-4 bg-indigo-600 text-white px-8 py-3 rounded-xl shadow-xl hover:bg-indigo-700 transition-all font-black text-[10px] uppercase tracking-widest flex items-center gap-2 active:scale-95">
+            <button 
+              onClick={() => { setEditingTransaction(null); setIsFormOpen(true); }} 
+              className="mt-4 bg-indigo-600 text-white px-8 py-3 rounded-lg shadow-xl hover:bg-indigo-700 transition-all font-black text-[10px] uppercase tracking-widest hidden md:flex items-center gap-2 active:scale-95"
+            >
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4"><path d="M12 5v14M5 12h14"/></svg>
               Novo Lançamento
             </button>
@@ -651,16 +652,16 @@ const App: React.FC = () => {
         </header>
 
         {isFormOpen && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] overflow-y-auto p-4 md:flex md:justify-center md:items-start py-8 md:py-16">
-            <div className="w-full max-w-4xl mx-auto">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[120] overflow-y-auto p-4 md:flex md:justify-center md:items-start py-8 md:py-16">
+            <div className="w-full max-w-2xl mx-auto">
               <TransactionForm onAdd={addTransaction} onUpdate={updateTransaction} editingTransaction={editingTransaction} categories={categories} cards={cards} onCancel={() => setIsFormOpen(false)} initialType={currentView === 'add-income' ? 'income' : 'expense'} />
             </div>
           </div>
         )}
 
         {isPaymentModalOpen && (
-          <div className="fixed inset-0 z-[70] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-            <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-sm w-full animate-in zoom-in-95">
+          <div className="fixed inset-0 z-[130] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+            <div className="bg-white p-6 rounded-xl shadow-2xl max-w-md w-full animate-in zoom-in-95">
               <h3 className="text-lg font-bold text-slate-900 mb-2">
                 {pendingPaymentStatus ? 'Reabrir Lançamento?' : 'Confirmar Pagamento?'}
               </h3>
@@ -676,21 +677,21 @@ const App: React.FC = () => {
                     type="date" 
                     value={selectedPaymentDate} 
                     onChange={e => setSelectedPaymentDate(e.target.value)}
-                    className="w-full px-4 py-3 bg-slate-50 rounded-xl text-sm font-bold text-slate-900 outline-none border border-transparent focus:border-indigo-100"
+                    className="w-full px-4 py-3 bg-slate-50 rounded-lg text-sm font-bold text-slate-900 outline-none border border-transparent focus:border-indigo-100"
                   />
                 </div>
               )}
               <div className="flex gap-3">
                 <button onClick={() => setIsPaymentModalOpen(false)} className="flex-1 py-3 text-slate-400 font-bold text-[10px] uppercase tracking-widest hover:text-slate-600 transition-colors">Cancelar</button>
-                <button onClick={confirmPaymentStatus} className={`flex-1 ${pendingPaymentStatus ? 'bg-amber-500 hover:bg-amber-600' : 'bg-teal-600 hover:bg-teal-700'} text-white rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-lg transition-all active:scale-95`}>Confirmar</button>
+                <button onClick={confirmPaymentStatus} className={`flex-1 ${pendingPaymentStatus ? 'bg-amber-500 hover:bg-amber-600' : 'bg-teal-600 hover:bg-teal-700'} text-white rounded-lg font-bold text-[10px] uppercase tracking-widest shadow-lg transition-all active:scale-95`}>Confirmar</button>
               </div>
             </div>
           </div>
         )}
 
         {isDeleteModalOpen && (
-          <div className="fixed inset-0 z-[70] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-             <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-sm w-full animate-in zoom-in-95 border border-rose-100">
+          <div className="fixed inset-0 z-[130] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+             <div className="bg-white p-6 rounded-xl shadow-2xl max-w-md w-full animate-in zoom-in-95 border border-rose-100">
                 <div className="w-12 h-12 bg-rose-50 rounded-full flex items-center justify-center text-rose-500 mb-4 mx-auto">
                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/></svg>
                 </div>
@@ -698,7 +699,7 @@ const App: React.FC = () => {
                 <p className="text-xs text-slate-500 mb-6 font-medium text-center">Tem certeza que deseja remover este item? Esta ação não pode ser desfeita.</p>
                 <div className="flex gap-3">
                   <button onClick={() => setIsDeleteModalOpen(false)} className="flex-1 py-3 text-slate-400 font-bold text-[10px] uppercase tracking-widest hover:text-slate-600 transition-colors">Cancelar</button>
-                  <button onClick={confirmDelete} className="flex-1 bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-lg shadow-rose-100 transition-all active:scale-95">Sim, Excluir</button>
+                  <button onClick={confirmDelete} className="flex-1 bg-rose-500 hover:bg-rose-600 text-white rounded-lg font-bold text-[10px] uppercase tracking-widest shadow-lg shadow-rose-100 transition-all active:scale-95">Sim, Excluir</button>
                 </div>
              </div>
           </div>
