@@ -149,7 +149,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onSelectUser }) => {
         <p className="text-slate-400 font-medium text-sm">Controle financeiro inteligente e minimalista.</p>
       </div>
 
-      <div className="bg-white p-8 md:p-10 rounded-2xl border border-slate-200/60 shadow-xl shadow-slate-200/40 w-full max-w-md animate-in zoom-in-95 duration-300">
+      <div className="bg-white p-8 md:p-10 rounded-xl border border-slate-200/60 shadow-xl shadow-slate-200/40 w-full max-w-md animate-in zoom-in-95 duration-300">
         <h2 className="text-xl font-bold text-slate-900 mb-8 text-center tracking-tight">
           {isSignUp ? 'Criar sua conta' : 'Acesse o sistema'}
         </h2>
@@ -163,7 +163,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onSelectUser }) => {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Ex: Patrick Hernandes"
-                className="w-full px-4 py-3.5 bg-slate-50 rounded-xl text-sm font-bold text-slate-900 outline-none border border-transparent focus:bg-white focus:border-indigo-200 transition-all placeholder:text-slate-300"
+                className="w-full px-4 py-3.5 bg-slate-50 rounded-lg text-sm font-bold text-slate-900 outline-none border border-transparent focus:bg-white focus:border-indigo-200 transition-all placeholder:text-slate-300"
                 required
               />
             </div>
@@ -176,7 +176,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onSelectUser }) => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="seu@email.com"
-              className="w-full px-4 py-3.5 bg-slate-50 rounded-xl text-sm font-bold text-slate-900 outline-none border border-transparent focus:bg-white focus:border-indigo-200 transition-all placeholder:text-slate-300"
+              className="w-full px-4 py-3.5 bg-slate-50 rounded-lg text-sm font-bold text-slate-900 outline-none border border-transparent focus:bg-white focus:border-indigo-200 transition-all placeholder:text-slate-300"
               required
             />
           </div>
@@ -188,19 +188,19 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onSelectUser }) => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full px-4 py-3.5 bg-slate-50 rounded-xl text-sm font-bold text-slate-900 outline-none border border-transparent focus:bg-white focus:border-indigo-200 transition-all placeholder:text-slate-300"
+              className="w-full px-4 py-3.5 bg-slate-50 rounded-lg text-sm font-bold text-slate-900 outline-none border border-transparent focus:bg-white focus:border-indigo-200 transition-all placeholder:text-slate-300"
               required
             />
           </div>
 
           {error && (
-            <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl animate-in slide-in-from-top-2">
+            <div className="p-3 bg-rose-50 border border-rose-100 rounded-lg animate-in slide-in-from-top-2">
               <p className="text-[10px] text-rose-500 font-bold uppercase text-center leading-tight">{error}</p>
             </div>
           )}
 
           {successMsg && (
-            <div className="p-4 bg-teal-50 border border-teal-100 rounded-xl animate-in slide-in-from-top-2">
+            <div className="p-4 bg-teal-50 border border-teal-100 rounded-lg animate-in slide-in-from-top-2">
               <div className="flex items-center gap-3">
                 <div className="w-5 h-5 bg-teal-500 text-white rounded-full flex items-center justify-center shrink-0">
                   <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4"><path d="M20 6 9 17l-5-5"/></svg>
@@ -214,7 +214,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onSelectUser }) => {
             <button 
               type="submit" 
               disabled={loading}
-              className="w-full bg-indigo-600 text-white py-4 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 disabled:opacity-50 active:scale-[0.98]"
+              className="w-full bg-indigo-600 text-white py-4 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 disabled:opacity-50 active:scale-[0.98]"
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">

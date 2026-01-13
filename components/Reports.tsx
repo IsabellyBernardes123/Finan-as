@@ -170,6 +170,11 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
     document.body.removeChild(link);
   };
 
+  // Garante que a lista de categorias seja única para o filtro
+  const uniqueCategories = useMemo(() => {
+    return Array.from(new Set([...categories.expense, ...categories.income])).sort();
+  }, [categories]);
+
   return (
     <div className="space-y-4 md:space-y-6 pb-20 md:pb-0">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 print:mb-8 print:border-b print:pb-6">
@@ -220,7 +225,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
               <label className="text-[9px] font-bold text-slate-400 uppercase mb-1.5 block">Categoria</label>
               <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="w-full bg-slate-50 border-none rounded-md px-4 py-2 text-xs font-bold text-slate-700 outline-none">
                 <option value="all">Todas</option>
-                {[...categories.expense, ...categories.income].sort().map(cat => (
+                {uniqueCategories.map(cat => (
                   <option key={cat} value={cat}>{cat}</option>
                 ))}
               </select>

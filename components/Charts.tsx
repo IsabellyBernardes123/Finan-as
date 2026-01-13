@@ -20,9 +20,11 @@ const Charts: React.FC<ChartsProps> = ({ transactions, categories }) => {
       acc.push({ name: t.category, value: t.amount });
     }
     return acc;
-  }, []);
+  }, []).sort((a, b) => b.value - a.value);
 
-  // Top 3 Maiores Gastos - Removida a rolagem e focado nos principais
+  const totalExpense = expenseData.reduce((sum, item) => sum + item.value, 0);
+
+  // Top 3 Maiores Gastos
   const topExpenses = [...expenseTransactions]
     .sort((a, b) => b.amount - a.amount)
     .slice(0, 3);
@@ -36,10 +38,46 @@ const Charts: React.FC<ChartsProps> = ({ transactions, categories }) => {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-      {/* Gráfico de Pizza - Gastos por Categoria */}
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 h-80 flex flex-col">
+      {/* Gastos por Categoria */}
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 h-auto md:h-80 flex flex-col">
         <h3 className="text-[10px] font-black mb-4 text-slate-400 uppercase tracking-widest">Gastos por Categoria</h3>
-        <div className="flex-1 min-h-0">
+        
+        {/* Mobile View: Lista */}
+        <div className="md:hidden space-y-3">
+          {expenseData.map((item, index) => {
+            const styles = getCategoryStyles(item.name, categories);
+            const percent = totalExpense > 0 ? ((item.value / totalExpense) * 100).toFixed(0) : '0';
+            const inlineStyles = styles.isCustom ? {
+              backgroundColor: `${styles.customColor}15`,
+              color: styles.customColor,
+              borderColor: `${styles.customColor}20`
+            } : {};
+
+            return (
+              <div key={item.name} className="flex items-center justify-between p-3 bg-slate-50/50 rounded-lg border border-transparent">
+                <div className="flex items-center gap-3">
+                  <div 
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center border shrink-0 ${!styles.isCustom ? `${styles.bg} ${styles.text} ${styles.border}` : ''}`}
+                    style={inlineStyles}
+                  >
+                    {getCategoryIcon(item.name, 16, categories)}
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-bold text-slate-800 leading-none">{item.name}</p>
+                    <p className="text-[9px] font-bold text-slate-400 uppercase mt-0.5">{percent}% do total</p>
+                  </div>
+                </div>
+                <p className="text-xs font-black text-slate-900">{formatCurrency(item.value)}</p>
+              </div>
+            );
+          })}
+          {expenseData.length === 0 && (
+            <p className="text-center py-4 text-[10px] font-bold text-slate-300 uppercase italic">Sem dados de gastos</p>
+          )}
+        </div>
+
+        {/* Desktop View: Gráfico */}
+        <div className="hidden md:flex flex-1 min-h-0">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
@@ -77,8 +115,8 @@ const Charts: React.FC<ChartsProps> = ({ transactions, categories }) => {
         </div>
       </div>
 
-      {/* Maiores Despesas do Período - Agora fixo em 3 itens sem scroll */}
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 h-80 flex flex-col">
+      {/* Maiores Despesas do Período - Oculto no Mobile */}
+      <div className="hidden md:flex bg-white p-6 rounded-xl shadow-sm border border-slate-100 h-80 flex-col">
         <h3 className="text-[10px] font-black mb-5 text-slate-400 uppercase tracking-widest">Top 3 Despesas do Período</h3>
         <div className="flex-1 flex flex-col justify-center space-y-4">
           {topExpenses.map((t) => {

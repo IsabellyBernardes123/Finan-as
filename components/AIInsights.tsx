@@ -31,10 +31,10 @@ const AIInsights: React.FC<AIInsightsProps> = ({ transactions }) => {
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-indigo-100 shadow-sm overflow-hidden transition-all hover:border-indigo-200">
+    <div className="bg-white rounded-xl border border-indigo-100 shadow-sm overflow-hidden transition-all hover:border-indigo-200">
       <div className="bg-indigo-600/5 px-5 py-4 flex items-center justify-between border-b border-indigo-50">
         <div className="flex items-center gap-2.5">
-          <div className="bg-indigo-600 text-white p-2 rounded-xl shadow-md shadow-indigo-200">
+          <div className="bg-indigo-600 text-white p-2 rounded-lg shadow-md shadow-indigo-200">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 2v8"/><path d="m4.93 4.93 7.07 7.07"/><path d="M2 12h8"/><path d="m4.93 19.07 7.07-7.07"/><path d="M12 22v-8"/><path d="m19.07 19.07-7.07-7.07"/><path d="M22 12h-8"/><path d="m19.07 4.93-7.07 7.07"/></svg>
           </div>
           <div className="flex flex-col">
@@ -47,7 +47,7 @@ const AIInsights: React.FC<AIInsightsProps> = ({ transactions }) => {
           <button 
             onClick={fetchInsight} 
             disabled={loading}
-            className="p-2 text-indigo-400 hover:text-indigo-600 hover:bg-white rounded-lg transition-all disabled:opacity-30"
+            className="p-2 text-indigo-400 hover:text-indigo-600 hover:bg-white rounded-md transition-all disabled:opacity-30"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className={loading ? 'animate-spin' : ''}><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
           </button>
@@ -88,7 +88,7 @@ const AIInsights: React.FC<AIInsightsProps> = ({ transactions }) => {
             </div>
           </div>
         ) : (
-          <div className="py-6 text-center px-4 bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+          <div className="py-6 text-center px-4 bg-slate-50/50 rounded-lg border border-dashed border-slate-200">
             <p className="text-slate-400 text-xs font-semibold">
               {insight || "Analisando seu padrão de vida..."}
             </p>

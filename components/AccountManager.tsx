@@ -71,10 +71,6 @@ const AccountManager: React.FC<AccountManagerProps> = ({ accounts, transactions,
     return accounts.map(acc => {
       const accountTransactions = transactions.filter(t => t.account_id === acc.id && t.is_paid);
       
-      // Lógica de Reserva/Investimentos
-      // Saída em Investimentos = Aplicação (Líquido -, Reserva +)
-      // Entrada em Investimentos = Resgate (Líquido +, Reserva -)
-      
       const balanceChange = accountTransactions.reduce((sum, t) => {
         const val = Number(t.amount);
         return t.type === 'income' ? sum + val : sum - val;
@@ -83,7 +79,6 @@ const AccountManager: React.FC<AccountManagerProps> = ({ accounts, transactions,
       const investmentMovements = accountTransactions.reduce((sum, t) => {
         const isInv = t.category.toLowerCase().includes('invest');
         if (!isInv) return sum;
-        // Se for Gasto (Application), aumenta a reserva. Se for Ganho (Redemption), diminui.
         return t.type === 'expense' ? sum + Number(t.amount) : sum - Number(t.amount);
       }, 0);
 
@@ -114,18 +109,15 @@ const AccountManager: React.FC<AccountManagerProps> = ({ accounts, transactions,
     }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [transactions, selectedAccount, startDate, endDate, selectedCategory, statusFilter, cards]);
 
-  const allCategories = Array.from(new Set([...categories.expense, ...categories.income])).sort();
-
   return (
     <div className="max-w-5xl space-y-6 pb-12">
-      {/* View: Detalhes da Conta */}
       {selectedAccount ? (
         <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
-          <div className="flex items-center gap-4 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+          <div className="flex items-center gap-4 bg-white p-6 rounded-xl border border-slate-100 shadow-sm">
             <button onClick={() => setSelectedAccount(null)} className="p-2 hover:bg-slate-50 rounded-lg text-slate-400 hover:text-indigo-600 transition-colors">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m15 18-6-6 6-6"/></svg>
             </button>
-            <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white" style={{ backgroundColor: selectedAccount.color }}>
+            <div className="w-12 h-12 rounded-lg flex items-center justify-center text-white" style={{ backgroundColor: selectedAccount.color }}>
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 21h18"/><path d="M5 21V7l8-4 8 4v14"/><path d="M17 21v-8H7v8"/></svg>
             </div>
             <div className="flex-1">
@@ -134,22 +126,21 @@ const AccountManager: React.FC<AccountManagerProps> = ({ accounts, transactions,
             </div>
           </div>
 
-          {/* Cards de Saldo Dual */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
              {(() => {
                const acc = calculatedAccounts.find(a => a.id === selectedAccount.id);
                if (!acc) return null;
                return (
                  <>
-                   <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                   <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm">
                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Saldo Disponível (Líquido)</p>
                      <h3 className={`text-xl font-black ${acc.currentLiquid >= 0 ? 'text-slate-900' : 'text-rose-500'}`}>{formatCurrency(acc.currentLiquid)}</h3>
                    </div>
-                   <div className="bg-indigo-50/50 p-5 rounded-2xl border border-indigo-100">
+                   <div className="bg-indigo-50/50 p-5 rounded-xl border border-indigo-100">
                      <p className="text-[9px] font-black text-indigo-500 uppercase tracking-widest mb-1">Reserva / Investido</p>
                      <h3 className="text-xl font-black text-indigo-700">{formatCurrency(acc.currentInvested)}</h3>
                    </div>
-                   <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 shadow-xl">
+                   <div className="bg-slate-900 p-5 rounded-xl border border-slate-800 shadow-xl">
                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Patrimônio Total</p>
                      <h3 className="text-xl font-black text-white">{formatCurrency(acc.totalPatrimony)}</h3>
                    </div>
@@ -158,13 +149,13 @@ const AccountManager: React.FC<AccountManagerProps> = ({ accounts, transactions,
              })()}
           </div>
 
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden p-6">
+          <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden p-6">
             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">Lançamentos Vinculados</h3>
             <div className="space-y-3">
               {filteredTransactions.map(t => (
-                <div key={t.id} className="flex items-center justify-between p-4 bg-slate-50/50 rounded-xl hover:bg-slate-50 transition-all group">
+                <div key={t.id} className="flex items-center justify-between p-4 bg-slate-50/50 rounded-lg hover:bg-slate-50 transition-all group">
                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-white border border-slate-100 flex items-center justify-center text-slate-400">
+                      <div className="w-8 h-8 rounded bg-white border border-slate-100 flex items-center justify-center text-slate-400">
                         {getCategoryIcon(t.category, 16)}
                       </div>
                       <div>
@@ -183,21 +174,20 @@ const AccountManager: React.FC<AccountManagerProps> = ({ accounts, transactions,
           </div>
         </div>
       ) : (
-        /* View: Listagem Geral de Contas */
         <div className="space-y-6">
-          <div className="flex justify-between items-center bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+          <div className="flex justify-between items-center bg-white p-6 rounded-xl border border-slate-100 shadow-sm">
             <div>
               <h2 className="text-xl font-bold text-slate-900 tracking-tight">Suas Contas</h2>
               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Gestão de Patrimônio Líquido e Reservas</p>
             </div>
-            <button onClick={() => setShowAdd(true)} className="bg-indigo-600 text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-100 active:scale-95">Nova Conta</button>
+            <button onClick={() => setShowAdd(true)} className="bg-indigo-600 text-white px-6 py-3 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-100 active:scale-95">Nova Conta</button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {calculatedAccounts.map(acc => (
-              <div key={acc.id} onClick={() => setSelectedAccount(acc)} className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm hover:border-indigo-200 transition-all group cursor-pointer active:scale-[0.98]">
+              <div key={acc.id} onClick={() => setSelectedAccount(acc)} className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm hover:border-indigo-200 transition-all group cursor-pointer active:scale-[0.98]">
                 <div className="flex justify-between items-start mb-6">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-md" style={{ backgroundColor: acc.color }}>
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center text-white shadow-md" style={{ backgroundColor: acc.color }}>
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 21h18"/><path d="M5 21V7l8-4 8 4v14"/><path d="M17 21v-8H7v8"/></svg>
                   </div>
                   <button onClick={(e) => { e.stopPropagation(); onDelete(acc.id); }} className="text-slate-300 hover:text-rose-500 transition-colors p-1">
@@ -227,30 +217,29 @@ const AccountManager: React.FC<AccountManagerProps> = ({ accounts, transactions,
         </div>
       )}
 
-      {/* Modal: Nova Conta */}
       {showAdd && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
-          <div className="bg-white p-8 rounded-[32px] shadow-2xl w-full max-w-md animate-in zoom-in-95">
+          <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md animate-in zoom-in-95">
             <h3 className="text-xl font-black text-slate-900 mb-6 uppercase tracking-tight">Criar Nova Conta</h3>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1.5 ml-1">Nome</label>
-                <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full px-4 py-3 bg-slate-50 rounded-xl outline-none border-2 border-transparent focus:border-indigo-100 font-medium text-slate-900 text-sm" placeholder="Ex: Nubank" required />
+                <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full px-4 py-3 bg-slate-50 rounded-lg outline-none border-2 border-transparent focus:border-indigo-100 font-medium text-slate-900 text-sm" placeholder="Ex: Nubank" required />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1.5 ml-1">Saldo Líquido Inicial</label>
-                  <input type="number" step="0.01" value={initialBalance} onChange={e => setInitialBalance(e.target.value)} className="w-full px-4 py-3 bg-slate-50 rounded-xl outline-none border-2 border-transparent focus:border-indigo-100 font-bold text-slate-900 text-sm" placeholder="0,00" required />
+                  <input type="number" step="0.01" value={initialBalance} onChange={e => setInitialBalance(e.target.value)} className="w-full px-4 py-3 bg-slate-50 rounded-lg outline-none border-2 border-transparent focus:border-indigo-100 font-bold text-slate-900 text-sm" placeholder="0,00" required />
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-indigo-400 uppercase block mb-1.5 ml-1">Reserva / Investido</label>
-                  <input type="number" step="0.01" value={initialInvested} onChange={e => setInitialInvested(e.target.value)} className="w-full px-4 py-3 bg-indigo-50/30 rounded-xl outline-none border-2 border-transparent focus:border-indigo-100 font-bold text-indigo-700 text-sm" placeholder="0,00" />
+                  <input type="number" step="0.01" value={initialInvested} onChange={e => setInitialInvested(e.target.value)} className="w-full px-4 py-3 bg-indigo-50/30 rounded-lg outline-none border-2 border-transparent focus:border-indigo-100 font-bold text-indigo-700 text-sm" placeholder="0,00" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1.5 ml-1">Tipo</label>
-                  <select value={type} onChange={e => setType(e.target.value as any)} className="w-full px-4 py-3 bg-slate-50 rounded-xl outline-none border-2 border-transparent focus:border-indigo-100 font-bold text-slate-900 text-xs">
+                  <select value={type} onChange={e => setType(e.target.value as any)} className="w-full px-4 py-3 bg-slate-50 rounded-lg outline-none border-2 border-transparent focus:border-indigo-100 font-bold text-slate-900 text-xs">
                     <option value="checking">Conta Corrente</option>
                     <option value="investment">Investimento</option>
                     <option value="cash">Dinheiro</option>
@@ -258,12 +247,12 @@ const AccountManager: React.FC<AccountManagerProps> = ({ accounts, transactions,
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1.5 ml-1">Cor</label>
-                  <input type="color" value={color} onChange={e => setColor(e.target.value)} className="w-full h-[48px] p-1 bg-slate-50 rounded-xl cursor-pointer" />
+                  <input type="color" value={color} onChange={e => setColor(e.target.value)} className="w-full h-[48px] p-1 bg-slate-50 rounded-lg cursor-pointer" />
                 </div>
               </div>
               <div className="flex gap-3 pt-6">
                 <button type="button" onClick={() => setShowAdd(false)} className="flex-1 py-4 text-slate-400 font-bold text-[10px] uppercase tracking-widest hover:text-slate-600 transition-colors">Cancelar</button>
-                <button type="submit" disabled={isSubmitting} className="flex-1 bg-indigo-600 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all">
+                <button type="submit" disabled={isSubmitting} className="flex-1 bg-indigo-600 text-white rounded-lg font-bold text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all">
                   {isSubmitting ? 'Salvando...' : 'Criar Conta'}
                 </button>
               </div>
