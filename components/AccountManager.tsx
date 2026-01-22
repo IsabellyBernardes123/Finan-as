@@ -68,26 +68,31 @@ const AccountManager: React.FC<AccountManagerProps> = ({ accounts, transactions,
       accountTransactions.forEach(t => {
         const val = Number(t.amount);
         const isInvestmentCategory = t.category.toLowerCase().includes('invest');
-        const isReserveWithdrawal = !!t.is_reserve_withdrawal;
+        const isReserveAction = !!t.is_reserve_withdrawal;
 
         if (t.type === 'income') {
-          if (isInvestmentCategory) {
+          if (isReserveAction) {
+            // Depósito direto na reserva
+            investmentMovements += val;
+          } else if (isInvestmentCategory) {
+            // Receita em categoria de investimento (ex: resgate manual sem toggle)
             investmentMovements -= val; 
             balanceChange += val; 
           } else {
+            // Receita comum
             balanceChange += val;
           }
         } else {
           // Despesa
-          if (isReserveWithdrawal) {
-            // Se for resgate da reserva, abate do investido
+          if (isReserveAction) {
+            // Resgate direto da reserva
             investmentMovements -= val;
           } else if (isInvestmentCategory) {
-            // Se for aporte em investimento, tira do líquido e põe no investido
+            // Aporte manual via categoria (sem toggle)
             investmentMovements += val;
             balanceChange -= val;
           } else {
-            // Gasto comum tira do líquido
+            // Gasto comum
             balanceChange -= val;
           }
         }
@@ -173,7 +178,9 @@ const AccountManager: React.FC<AccountManagerProps> = ({ accounts, transactions,
                         <div className="flex items-center gap-2">
                            <p className="text-xs font-bold text-slate-900">{t.description}</p>
                            {t.is_reserve_withdrawal && (
-                             <span className="px-1.5 py-0.5 rounded-sm bg-amber-50 text-amber-600 text-[8px] font-black uppercase tracking-tighter border border-amber-100">Via Reserva</span>
+                             <span className="px-1.5 py-0.5 rounded-sm bg-amber-50 text-amber-600 text-[8px] font-black uppercase tracking-tighter border border-amber-100">
+                               {t.type === 'expense' ? 'Via Reserva' : 'Direto p/ Reserva'}
+                             </span>
                            )}
                         </div>
                         <p className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">{t.category}</p>

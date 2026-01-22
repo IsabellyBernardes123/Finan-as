@@ -219,12 +219,12 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
               <input type="text" value={description} onChange={e => setDescription(e.target.value)} className={inputClasses} placeholder="O que você comprou?" required />
             </div>
             <div className="lg:col-span-3">
-              <label className={labelClasses}>Data de Vencimento</label>
+              <label className={labelClasses}>Data {type === 'expense' ? 'de Vencimento' : 'do Recebimento'}</label>
               <input type="date" value={date} onChange={e => setDate(e.target.value)} className={inputClasses} required />
             </div>
             <div className="lg:col-span-3">
               <div className="flex items-center justify-between mb-1">
-                <label className={labelClasses}>Pago?</label>
+                <label className={labelClasses}>{type === 'expense' ? 'Pago?' : 'Recebido?'}</label>
                 <button type="button" onClick={() => setIsPaid(!isPaid)} className={`w-9 h-5 rounded-full transition-all relative ${isPaid ? 'bg-teal-500' : 'bg-slate-200'}`}>
                   <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${isPaid ? 'left-4.5' : 'left-0.5'}`}></div>
                 </button>
@@ -263,7 +263,8 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
                         setSelectedAccountId(''); 
                       }
                     }} 
-                    className={`${inputClasses} appearance-none pr-8 bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23cbd5e1%22%20stroke-width%3D%223%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:12px_12px] bg-[right_0.6rem_center] bg-no-repeat`}
+                    disabled={type === 'income'}
+                    className={`${inputClasses} ${type === 'income' ? 'opacity-40 cursor-not-allowed' : ''} appearance-none pr-8 bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23cbd5e1%22%20stroke-width%3D%223%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:12px_12px] bg-[right_0.6rem_center] bg-no-repeat`}
                   >
                     <option value="">Não usar cartão</option>
                     {cards.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -285,19 +286,19 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-             {type === 'expense' && (
-                <div className="md:col-span-2">
-                  <div className="flex items-center justify-between h-full bg-amber-50/50 border border-amber-100/50 rounded-lg px-4 py-2">
-                    <div className="flex items-center gap-2">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2.5"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                      <span className="text-[10px] font-black text-amber-700 uppercase tracking-widest">Usar Reserva?</span>
-                    </div>
-                    <button type="button" onClick={() => setIsReserveWithdrawal(!isReserveWithdrawal)} className={`w-9 h-5 rounded-full transition-all relative ${isReserveWithdrawal ? 'bg-amber-500' : 'bg-slate-200'}`}>
-                      <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${isReserveWithdrawal ? 'left-4.5' : 'left-0.5'}`}></div>
-                    </button>
+             <div className="md:col-span-2">
+                <div className={`flex items-center justify-between h-full border rounded-lg px-4 py-2 transition-all ${isReserveWithdrawal ? 'bg-amber-50 border-amber-200' : 'bg-slate-50/50 border-slate-100'}`}>
+                  <div className="flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={isReserveWithdrawal ? "#d97706" : "#94a3b8"} strokeWidth="2.5"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                    <span className={`text-[10px] font-black uppercase tracking-widest ${isReserveWithdrawal ? 'text-amber-700' : 'text-slate-400'}`}>
+                      {type === 'expense' ? 'Usar Reserva?' : 'Enviar p/ Reserva?'}
+                    </span>
                   </div>
+                  <button type="button" onClick={() => setIsReserveWithdrawal(!isReserveWithdrawal)} className={`w-9 h-5 rounded-full transition-all relative ${isReserveWithdrawal ? 'bg-amber-500' : 'bg-slate-200'}`}>
+                    <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${isReserveWithdrawal ? 'left-4.5' : 'left-0.5'}`}></div>
+                  </button>
                 </div>
-             )}
+             </div>
              <div className="md:col-start-4">
                <label className={`${labelClasses} text-indigo-500`}>Nº Meses</label>
                <input type="number" min="1" max="99" value={installments} disabled={!!editingTransaction} onChange={e => setInstallments(parseInt(e.target.value) || 1)} className={`${inputClasses} border-indigo-50 bg-indigo-50/20 disabled:opacity-40`} />
