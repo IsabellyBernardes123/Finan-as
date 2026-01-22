@@ -101,7 +101,8 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
 
       // Define se usa cartão ou conta
       const finalCardId = selectedCardId || null;
-      const finalAccountId = !selectedCardId && selectedAccountId ? selectedAccountId : null;
+      // Permite salvar a conta mesmo se tiver cartão (para manter o vínculo)
+      const finalAccountId = selectedAccountId || null;
 
       if (editingTransaction && onUpdate) {
         const splitInfo: SplitDetails | undefined = isSplit ? {
@@ -254,7 +255,22 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
                   <label className={labelClasses}>Cartão de Crédito</label>
                   <select 
                     value={selectedCardId} 
-                    onChange={e => { setSelectedCardId(e.target.value); if(e.target.value) setSelectedAccountId(''); }} 
+                    onChange={e => { 
+                      const newCardId = e.target.value;
+                      setSelectedCardId(newCardId);
+                      
+                      // Auto-vincula a conta se o cartão tiver uma configurada
+                      if (newCardId) {
+                        const card = cards.find(c => c.id === newCardId);
+                        if (card?.account_id) {
+                          setSelectedAccountId(card.account_id);
+                        } else {
+                          setSelectedAccountId('');
+                        }
+                      } else {
+                        setSelectedAccountId(''); 
+                      }
+                    }} 
                     className={`${inputClasses} appearance-none pr-8 bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23cbd5e1%22%20stroke-width%3D%223%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:12px_12px] bg-[right_0.6rem_center] bg-no-repeat`}
                   >
                     <option value="">Não usar cartão</option>
@@ -267,7 +283,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
                     value={selectedAccountId} 
                     onChange={e => setSelectedAccountId(e.target.value)} 
                     disabled={!!selectedCardId}
-                    className={`${inputClasses} ${!!selectedCardId ? 'opacity-50' : ''} appearance-none pr-8 bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23cbd5e1%22%20stroke-width%3D%223%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:12px_12px] bg-[right_0.6rem_center] bg-no-repeat`}
+                    className={`${inputClasses} ${!!selectedCardId ? 'opacity-70 bg-slate-100' : ''} appearance-none pr-8 bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23cbd5e1%22%20stroke-width%3D%223%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:12px_12px] bg-[right_0.6rem_center] bg-no-repeat`}
                   >
                     <option value="">Sem conta vinculada</option>
                     {availableAccounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
