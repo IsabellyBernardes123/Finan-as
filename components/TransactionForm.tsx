@@ -29,7 +29,6 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
   const [type, setType] = useState<TransactionType>(initialType);
   const [category, setCategory] = useState('');
   
-  // Seleção de meio de pagamento
   const [selectedCardId, setSelectedCardId] = useState('');
   const [selectedAccountId, setSelectedAccountId] = useState('');
   const [availableAccounts, setAvailableAccounts] = useState<Account[]>([]);
@@ -38,12 +37,12 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
   const [installmentMode, setInstallmentMode] = useState<'divide' | 'repeat'>('divide');
   const [isSplit, setIsSplit] = useState(false);
   const [isPaid, setIsPaid] = useState(false);
+  const [isReserveWithdrawal, setIsReserveWithdrawal] = useState(false);
   const [partnerPart, setPartnerPart] = useState('');
   const [partnerName, setPartnerName] = useState(categories.payers?.[0] || 'Isa');
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Buscar contas ao montar
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
@@ -65,6 +64,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
       setSelectedAccountId(editingTransaction.account_id || '');
       setIsSplit(!!editingTransaction.is_split);
       setIsPaid(editingTransaction.is_paid);
+      setIsReserveWithdrawal(!!editingTransaction.is_reserve_withdrawal);
       if (editingTransaction.split_details) {
         setPartnerPart(editingTransaction.split_details.partnerPart.toString());
         setPartnerName(editingTransaction.split_details.partnerName);
@@ -82,6 +82,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
       setInstallmentMode('divide');
       setIsSplit(false);
       setIsPaid(false);
+      setIsReserveWithdrawal(false);
       setPartnerPart('');
       setPartnerName(categories.payers?.[0] || 'Isa');
     }
@@ -94,14 +95,9 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
     
     try {
       const inputValue = parseFloat(amount);
-      const getSafeISO = (dateStr: string) => {
-        const d = new Date(dateStr + 'T12:00:00');
-        return d.toISOString();
-      };
+      const getSafeISO = (dateStr: string) => new Date(dateStr + 'T12:00:00').toISOString();
 
-      // Define se usa cartão ou conta
       const finalCardId = selectedCardId || null;
-      // Permite salvar a conta mesmo se tiver cartão (para manter o vínculo)
       const finalAccountId = selectedAccountId || null;
 
       if (editingTransaction && onUpdate) {
@@ -122,7 +118,8 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
           account_id: finalAccountId,
           is_split: isSplit,
           split_details: splitInfo,
-          is_paid: isPaid
+          is_paid: isPaid,
+          is_reserve_withdrawal: isReserveWithdrawal
         });
         
         if (res) {
@@ -163,7 +160,8 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
           account_id: finalAccountId,
           is_split: isSplit,
           split_details: splitInfo,
-          is_paid: isPaid
+          is_paid: isPaid,
+          is_reserve_withdrawal: isReserveWithdrawal
         });
         if (!res) allSuccess = false;
       }
@@ -249,7 +247,6 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
               </select>
             </div>
             
-            {/* Lógica de Seleção de Pagamento */}
             <div className="md:col-span-2 grid grid-cols-2 gap-3">
                <div>
                   <label className={labelClasses}>Cartão de Crédito</label>
@@ -258,15 +255,10 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
                     onChange={e => { 
                       const newCardId = e.target.value;
                       setSelectedCardId(newCardId);
-                      
-                      // Auto-vincula a conta se o cartão tiver uma configurada
                       if (newCardId) {
                         const card = cards.find(c => c.id === newCardId);
-                        if (card?.account_id) {
-                          setSelectedAccountId(card.account_id);
-                        } else {
-                          setSelectedAccountId('');
-                        }
+                        if (card?.account_id) setSelectedAccountId(card.account_id);
+                        else setSelectedAccountId('');
                       } else {
                         setSelectedAccountId(''); 
                       }
@@ -293,6 +285,19 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+             {type === 'expense' && (
+                <div className="md:col-span-2">
+                  <div className="flex items-center justify-between h-full bg-amber-50/50 border border-amber-100/50 rounded-lg px-4 py-2">
+                    <div className="flex items-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2.5"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                      <span className="text-[10px] font-black text-amber-700 uppercase tracking-widest">Usar Reserva?</span>
+                    </div>
+                    <button type="button" onClick={() => setIsReserveWithdrawal(!isReserveWithdrawal)} className={`w-9 h-5 rounded-full transition-all relative ${isReserveWithdrawal ? 'bg-amber-500' : 'bg-slate-200'}`}>
+                      <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${isReserveWithdrawal ? 'left-4.5' : 'left-0.5'}`}></div>
+                    </button>
+                  </div>
+                </div>
+             )}
              <div className="md:col-start-4">
                <label className={`${labelClasses} text-indigo-500`}>Nº Meses</label>
                <input type="number" min="1" max="99" value={installments} disabled={!!editingTransaction} onChange={e => setInstallments(parseInt(e.target.value) || 1)} className={`${inputClasses} border-indigo-50 bg-indigo-50/20 disabled:opacity-40`} />

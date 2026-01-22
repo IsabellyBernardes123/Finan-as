@@ -18,14 +18,6 @@ const AccountManager: React.FC<AccountManagerProps> = ({ accounts, transactions,
   const [showAdd, setShowAdd] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
   
-  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-  const [paymentTransId, setPaymentTransId] = useState<string | null>(null);
-  const [paymentCurrentStatus, setPaymentCurrentStatus] = useState(false);
-  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
-
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [deleteTransId, setDeleteTransId] = useState<string | null>(null);
-
   const getInitialDates = () => {
     const now = new Date();
     const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
@@ -38,7 +30,6 @@ const AccountManager: React.FC<AccountManagerProps> = ({ accounts, transactions,
   const [endDate, setEndDate] = useState(initEnd);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'paid' | 'pending'>('all');
-  const [isFiltersVisible, setIsFiltersVisible] = useState(false);
 
   const [name, setName] = useState('');
   const [initialBalance, setInitialBalance] = useState('');
@@ -71,16 +62,36 @@ const AccountManager: React.FC<AccountManagerProps> = ({ accounts, transactions,
     return accounts.map(acc => {
       const accountTransactions = transactions.filter(t => t.account_id === acc.id && t.is_paid);
       
-      const balanceChange = accountTransactions.reduce((sum, t) => {
-        const val = Number(t.amount);
-        return t.type === 'income' ? sum + val : sum - val;
-      }, 0);
+      let balanceChange = 0;
+      let investmentMovements = 0;
 
-      const investmentMovements = accountTransactions.reduce((sum, t) => {
-        const isInv = t.category.toLowerCase().includes('invest');
-        if (!isInv) return sum;
-        return t.type === 'expense' ? sum + Number(t.amount) : sum - Number(t.amount);
-      }, 0);
+      accountTransactions.forEach(t => {
+        const val = Number(t.amount);
+        const isInvestmentCategory = t.category.toLowerCase().includes('invest');
+        const isReserveWithdrawal = !!t.is_reserve_withdrawal;
+
+        if (t.type === 'income') {
+          if (isInvestmentCategory) {
+            investmentMovements -= val; 
+            balanceChange += val; 
+          } else {
+            balanceChange += val;
+          }
+        } else {
+          // Despesa
+          if (isReserveWithdrawal) {
+            // Se for resgate da reserva, abate do investido
+            investmentMovements -= val;
+          } else if (isInvestmentCategory) {
+            // Se for aporte em investimento, tira do líquido e põe no investido
+            investmentMovements += val;
+            balanceChange -= val;
+          } else {
+            // Gasto comum tira do líquido
+            balanceChange -= val;
+          }
+        }
+      });
 
       const currentLiquid = Number(acc.initial_balance) + balanceChange;
       const currentInvested = Number(acc.initial_invested_balance || 0) + investmentMovements;
@@ -159,7 +170,12 @@ const AccountManager: React.FC<AccountManagerProps> = ({ accounts, transactions,
                         {getCategoryIcon(t.category, 16)}
                       </div>
                       <div>
-                        <p className="text-xs font-bold text-slate-900">{t.description}</p>
+                        <div className="flex items-center gap-2">
+                           <p className="text-xs font-bold text-slate-900">{t.description}</p>
+                           {t.is_reserve_withdrawal && (
+                             <span className="px-1.5 py-0.5 rounded-sm bg-amber-50 text-amber-600 text-[8px] font-black uppercase tracking-tighter border border-amber-100">Via Reserva</span>
+                           )}
+                        </div>
                         <p className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">{t.category}</p>
                       </div>
                    </div>

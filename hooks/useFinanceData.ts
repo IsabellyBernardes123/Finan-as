@@ -88,7 +88,11 @@ export const useFinanceData = (userId: string | null) => {
   const updateTransaction = useCallback(async (id: string, updates: Partial<Transaction>) => {
     if (!userId || !id) return false;
     try {
-      const allowedKeys = ['description', 'amount', 'type', 'category', 'date', 'payment_date', 'card_id', 'account_id', 'is_split', 'split_details', 'is_paid'];
+      const allowedKeys = [
+        'description', 'amount', 'type', 'category', 'date', 
+        'payment_date', 'card_id', 'account_id', 'is_split', 
+        'split_details', 'is_paid', 'is_reserve_withdrawal'
+      ];
       const payload = Object.fromEntries(
         Object.entries(updates).filter(([key]) => allowedKeys.includes(key))
       );
@@ -135,7 +139,6 @@ export const useFinanceData = (userId: string | null) => {
     } catch (err) { console.error('Erro ao alternar status:', err); }
   }, [userId]);
 
-  // --- Cards CRUD ---
   const addCard = async (card: Omit<CreditCard, 'id'>) => {
     if (!userId) return;
     const { data, error } = await supabase.from('credit_cards').insert([{ ...card, user_id: userId }]).select();
@@ -162,7 +165,6 @@ export const useFinanceData = (userId: string | null) => {
     if (!error) setCards(prev => prev.filter(c => c.id !== id));
   };
 
-  // --- Accounts CRUD ---
   const addAccount = async (account: Omit<Account, 'id'>) => {
     if (!userId) return false;
     try {
