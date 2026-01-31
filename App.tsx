@@ -138,6 +138,23 @@ const App: React.FC = () => {
   
   const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
+  // FUNÇÃO AUXILIAR DE CÁLCULO DE VALOR POR FILTRO
+  const getDisplayAmount = (t: Transaction, filters: string[]) => {
+    if (filters.includes('all')) return Number(t.amount);
+    
+    if (!t.is_split) {
+      // Se for solo, só exibe valor se "individual" estiver selecionado
+      return filters.includes('individual') ? Number(t.amount) : 0;
+    }
+    
+    // Se for split, soma as partes dos selecionados
+    let sum = 0;
+    if (filters.includes('individual')) sum += Number(t.split_details?.userPart || 0);
+    if (filters.includes(t.split_details?.partnerName || '')) sum += Number(t.split_details?.partnerPart || 0);
+    
+    return sum;
+  };
+
   const handleTogglePaidRequest = (id: string, currentStatus: boolean) => {
     setPendingPaymentId(id);
     setPendingPaymentStatus(currentStatus);
@@ -190,20 +207,20 @@ const App: React.FC = () => {
       
       let matchesPayer = selectedPayers.includes('all');
       if (!matchesPayer) {
-        if (selectedPayers.includes('individual') && !t.is_split) matchesPayer = true;
-        if (t.is_split && selectedPayers.includes(t.split_details?.partnerName || '')) matchesPayer = true;
+        const hasIndividual = selectedPayers.includes('individual');
+        if (!t.is_split) {
+          if (hasIndividual) matchesPayer = true;
+        } else {
+          if (hasIndividual || selectedPayers.includes(t.split_details?.partnerName || '')) matchesPayer = true;
+        }
       }
       
       return matchesDate && matchesCategory && matchesPayer && matchesStatus;
     });
 
     const summary: Summary = filtered.reduce((acc, t) => {
-      let amt = Number(t.amount);
-      if (selectedPayers.length === 1 && selectedPayers[0] === 'individual' && t.is_split && t.split_details) {
-        amt = Number(t.split_details.userPart);
-      } else if (selectedPayers.length === 1 && selectedPayers[0] !== 'all' && t.is_split && t.split_details) {
-        amt = Number(t.split_details.partnerPart);
-      }
+      // Aplica a nova lógica de soma de partes selecionadas
+      const amt = getDisplayAmount(t, selectedPayers);
 
       if (t.type === 'income') { acc.income += amt; acc.balance += amt; }
       else { acc.expenses += amt; acc.balance -= amt; }
@@ -373,8 +390,12 @@ const App: React.FC = () => {
         
         let matchesPayer = selectedPayers.includes('all');
         if (!matchesPayer) {
-           if (selectedPayers.includes('individual') && !t.is_split) matchesPayer = true;
-           if (t.is_split && selectedPayers.includes(t.split_details?.partnerName || '')) matchesPayer = true;
+          const hasIndividual = selectedPayers.includes('individual');
+          if (!t.is_split) {
+            if (hasIndividual) matchesPayer = true;
+          } else {
+            if (hasIndividual || selectedPayers.includes(t.split_details?.partnerName || '')) matchesPayer = true;
+          }
         }
         return matchesPayer;
       })
@@ -408,6 +429,9 @@ const App: React.FC = () => {
                   color: styles.customColor,
                   borderColor: `${styles.customColor}30`
                 } : {};
+
+                // Valor exibido DEPENDE DO FILTRO DE PAGANTES SELECIONADOS
+                const displayVal = getDisplayAmount(t, selectedPayers);
 
                 return (
                   <tr key={t.id} className="hover:bg-slate-50/50 transition-colors group">
@@ -456,7 +480,7 @@ const App: React.FC = () => {
                         <span className="text-[9px] font-black text-slate-300 uppercase italic">SOLO</span>
                       )}
                     </td>
-                    <td className={`py-4 px-6 text-right text-sm font-black ${t.type === 'income' ? 'text-teal-600' : 'text-rose-500'}`}>{formatCurrency(t.amount)}</td>
+                    <td className={`py-4 px-6 text-right text-sm font-black ${t.type === 'income' ? 'text-teal-600' : 'text-rose-500'}`}>{formatCurrency(displayVal)}</td>
                     <td className="py-4 px-6">
                       <div className="flex justify-center gap-1">
                         <button onClick={() => { setEditingTransaction(t); setIsFormOpen(true); }} className="p-2 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-all"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></button>
@@ -481,6 +505,8 @@ const App: React.FC = () => {
               borderColor: `${styles.customColor}30`
             } : {};
 
+            const displayVal = getDisplayAmount(t, selectedPayers);
+
             return (
               <div key={t.id} className="bg-white p-4 rounded-lg border border-slate-100 shadow-sm relative overflow-hidden active:scale-[0.99] transition-transform">
                 <div className="flex justify-between items-start mb-3">
@@ -501,7 +527,7 @@ const App: React.FC = () => {
                       )}
                    </div>
                    <div className="text-right">
-                      <p className={`text-base font-black ${t.type === 'income' ? 'text-teal-600' : 'text-rose-500'}`}>{formatCurrency(t.amount)}</p>
+                      <p className={`text-base font-black ${t.type === 'income' ? 'text-teal-600' : 'text-rose-500'}`}>{formatCurrency(displayVal)}</p>
                    </div>
                 </div>
 

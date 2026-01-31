@@ -54,6 +54,21 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
   const [selectedPayers, setSelectedPayers] = useState<string[]>(['all']);
   const [statusFilter, setStatusFilter] = useState<'all' | 'paid' | 'pending'>('all');
 
+  // FUNÇÃO AUXILIAR DE CÁLCULO DE VALOR POR FILTRO (COPIADA DO APP PARA CONSISTÊNCIA)
+  const getDisplayAmount = (t: Transaction, filters: string[]) => {
+    if (filters.includes('all')) return Number(t.amount);
+    
+    if (!t.is_split) {
+      return filters.includes('individual') ? Number(t.amount) : 0;
+    }
+    
+    let sum = 0;
+    if (filters.includes('individual')) sum += Number(t.split_details?.userPart || 0);
+    if (filters.includes(t.split_details?.partnerName || '')) sum += Number(t.split_details?.partnerPart || 0);
+    
+    return sum;
+  };
+
   const { filteredTransactions, summary } = useMemo(() => {
     const filtered = transactions
       .filter(t => {
@@ -66,20 +81,20 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
         
         let matchesPayer = selectedPayers.includes('all');
         if (!matchesPayer) {
-           if (selectedPayers.includes('individual') && !t.is_split) matchesPayer = true;
-           if (t.is_split && selectedPayers.includes(t.split_details?.partnerName || '')) matchesPayer = true;
+           const hasIndividual = selectedPayers.includes('individual');
+           if (!t.is_split) {
+             if (hasIndividual) matchesPayer = true;
+           } else {
+             if (hasIndividual || selectedPayers.includes(t.split_details?.partnerName || '')) matchesPayer = true;
+           }
         }
         return matchesPayer;
       })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
     const stats = filtered.reduce((acc, t) => {
-      let amt = Number(t.amount);
-      if (selectedPayers.length === 1 && selectedPayers[0] === 'individual' && t.is_split && t.split_details) {
-        amt = Number(t.split_details.userPart);
-      } else if (selectedPayers.length === 1 && selectedPayers[0] !== 'all' && t.is_split && t.split_details) {
-        amt = Number(t.split_details.partnerPart);
-      }
+      // Aplica a nova lógica de soma de partes selecionadas
+      const amt = getDisplayAmount(t, selectedPayers);
 
       if (t.type === 'income') {
         acc.income += amt;
@@ -132,12 +147,8 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
   const exportToExcel = () => {
     const headers = ["Vencimento", "Pagamento", "Descrição", "Categoria", "Tipo", "Conta / Origem", "Método", "Valor", "Status"];
     const rows = filteredTransactions.map(t => {
-      let val = t.amount;
-      if (selectedPayers.length === 1 && selectedPayers[0] === 'individual' && t.is_split && t.split_details) {
-        val = t.split_details.userPart;
-      } else if (selectedPayers.length === 1 && selectedPayers[0] !== 'all' && t.is_split && t.split_details) {
-        val = t.split_details.partnerPart;
-      }
+      // Usa a lógica dinâmica no export também
+      const val = getDisplayAmount(t, selectedPayers);
 
       const card = t.card_id ? cards.find(c => c.id === t.card_id) : null;
       const account = t.account_id ? accounts.find(a => a.id === t.account_id) : null;
@@ -170,7 +181,6 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
     document.body.removeChild(link);
   };
 
-  // Garante que a lista de categorias seja única para o filtro
   const uniqueCategories = useMemo(() => {
     return Array.from(new Set([...categories.expense, ...categories.income])).sort();
   }, [categories]);
@@ -316,9 +326,8 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
                   borderColor: `${style.customColor}30`
                 } : {};
 
-                let displayVal = t.amount;
-                if (selectedPayers.length === 1 && selectedPayers[0] === 'individual' && t.is_split && t.split_details) { displayVal = t.split_details.userPart; }
-                else if (selectedPayers.length === 1 && selectedPayers[0] !== 'all' && t.is_split && t.split_details) { displayVal = t.split_details.partnerPart; }
+                // APLICA LÓGICA DINÂMICA DE VALOR
+                const displayVal = getDisplayAmount(t, selectedPayers);
 
                 const card = t.card_id ? cards.find(c => c.id === t.card_id) : null;
                 const account = t.account_id ? accounts.find(a => a.id === t.account_id) : null;
@@ -383,9 +392,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, categories }) => {
               borderColor: `${style.customColor}30`
             } : {};
 
-            let displayVal = t.amount;
-            if (selectedPayers.length === 1 && selectedPayers[0] === 'individual' && t.is_split && t.split_details) { displayVal = t.split_details.userPart; }
-            else if (selectedPayers.length === 1 && selectedPayers[0] !== 'all' && t.is_split && t.split_details) { displayVal = t.split_details.partnerPart; }
+            const displayVal = getDisplayAmount(t, selectedPayers);
 
             const accountName = t.account_id ? accounts.find(a => a.id === t.account_id)?.name : null;
             const cardName = t.card_id ? cards.find(c => c.id === t.card_id)?.name : null;
