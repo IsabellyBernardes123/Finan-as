@@ -58,7 +58,9 @@ const PayerReports: React.FC<PayerReportsProps> = ({ transactions, categories })
         }
       });
 
-    return Object.entries(results).map(([name, data]) => ({ name, ...data }));
+    return Object.entries(results)
+      .map(([name, data]) => ({ name, ...data }))
+      .filter(payer => payer.transactions.length > 0);
   }, [transactions, categories.payers, startDate, endDate]);
 
   const grandTotalPending = payerData.reduce((acc, curr) => acc + curr.pending, 0);

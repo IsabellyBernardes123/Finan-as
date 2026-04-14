@@ -259,13 +259,21 @@ const App: React.FC = () => {
     const renderFilterBar = () => {
       const allCategories = Array.from(new Set([...categories.expense, ...categories.income])).sort();
       
-      // Coleta todos os pagantes únicos das transações + os cadastrados
-      const dynamicPayers = Array.from(new Set([
-        ...(categories.payers || []),
-        ...transactions
+      // Filtra transações apenas por data para descobrir quais pagantes têm valores no período
+      const transactionsInPeriod = transactions.filter(t => {
+        const tDate = t.date.split('T')[0];
+        return tDate >= startDate && tDate <= endDate;
+      });
+
+      // Coleta apenas pagantes que realmente possuem transações (split) no período selecionado
+      const dynamicPayers = Array.from(new Set(
+        transactionsInPeriod
           .filter(t => t.is_split && t.split_details?.partnerName)
           .map(t => t.split_details!.partnerName)
-      ])).sort();
+      )).sort();
+
+      // Verifica se o próprio usuário tem transações no período (solo ou sua parte no split)
+      const hasIndividualValues = transactionsInPeriod.some(t => !t.is_split || (t.is_split && Number(t.split_details?.userPart || 0) > 0));
 
       const getPayerButtonLabel = () => {
         if (selectedPayers.includes('all')) return 'Todos';
@@ -325,16 +333,21 @@ const App: React.FC = () => {
                       </div>
                       <span className="flex-1">Todos</span>
                     </button>
-                    <button 
-                      onClick={() => togglePayerFilter('individual')}
-                      className="w-full px-4 py-2.5 text-left text-xs font-bold flex items-center gap-3 hover:bg-slate-50 transition-colors text-slate-700"
-                    >
-                      <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors shrink-0 ${selectedPayers.includes('individual') ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300'}`}>
-                        {selectedPayers.includes('individual') && <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4"><path d="M20 6 9 17l-5-5"/></svg>}
-                      </div>
-                      <span className="flex-1">Apenas Eu</span>
-                    </button>
-                    <div className="h-px bg-slate-50 my-1 mx-2"></div>
+                    
+                    {hasIndividualValues && (
+                      <button 
+                        onClick={() => togglePayerFilter('individual')}
+                        className="w-full px-4 py-2.5 text-left text-xs font-bold flex items-center gap-3 hover:bg-slate-50 transition-colors text-slate-700"
+                      >
+                        <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors shrink-0 ${selectedPayers.includes('individual') ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300'}`}>
+                          {selectedPayers.includes('individual') && <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4"><path d="M20 6 9 17l-5-5"/></svg>}
+                        </div>
+                        <span className="flex-1">Apenas Eu</span>
+                      </button>
+                    )}
+
+                    {dynamicPayers.length > 0 && <div className="h-px bg-slate-50 my-1 mx-2"></div>}
+                    
                     {dynamicPayers.map(p => (
                       <button 
                         key={p}
