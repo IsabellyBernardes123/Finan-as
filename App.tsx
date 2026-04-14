@@ -256,92 +256,100 @@ const App: React.FC = () => {
     return { filteredTransactions: filtered, summary, cardSummaries: Object.values(groupedByCard) };
   }, [transactions, startDate, endDate, selectedCategory, selectedPayers, statusFilter, cards]);
 
-  const renderFilterBar = () => {
-    const allCategories = Array.from(new Set([...categories.expense, ...categories.income])).sort();
-    
-    const getPayerButtonLabel = () => {
-      if (selectedPayers.includes('all')) return 'Todos';
-      if (selectedPayers.length === 1) {
-        return selectedPayers[0] === 'individual' ? 'Apenas Eu' : selectedPayers[0];
-      }
-      return `${selectedPayers.length} Selecionados`;
-    };
+    const renderFilterBar = () => {
+      const allCategories = Array.from(new Set([...categories.expense, ...categories.income])).sort();
+      
+      // Coleta todos os pagantes únicos das transações + os cadastrados
+      const dynamicPayers = Array.from(new Set([
+        ...(categories.payers || []),
+        ...transactions
+          .filter(t => t.is_split && t.split_details?.partnerName)
+          .map(t => t.split_details!.partnerName)
+      ])).sort();
 
-    return (
-      <div className="bg-white rounded-lg border border-slate-100 shadow-sm mb-6 relative z-30">
-        <button 
-          onClick={() => setIsFiltersVisible(!isFiltersVisible)}
-          className="w-full px-4 py-3 flex items-center justify-between lg:hidden transition-colors hover:bg-slate-50 border-b border-transparent data-[open=true]:border-slate-100"
-          data-open={isFiltersVisible}
-        >
-          <div className="flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-indigo-600">
-              <path d="M21 4H3"/><path d="M20 8H4"/><path d="M18 12H6"/><path d="M15 16H9"/><path d="M12 20H12"/>
+      const getPayerButtonLabel = () => {
+        if (selectedPayers.includes('all')) return 'Todos';
+        if (selectedPayers.length === 1) {
+          return selectedPayers[0] === 'individual' ? 'Apenas Eu' : selectedPayers[0];
+        }
+        return `${selectedPayers.length} Selecionados`;
+      };
+
+      return (
+        <div className="bg-white rounded-lg border border-slate-100 shadow-sm mb-6 relative z-30">
+          <button 
+            onClick={() => setIsFiltersVisible(!isFiltersVisible)}
+            className="w-full px-4 py-3 flex items-center justify-between lg:hidden transition-colors hover:bg-slate-50 border-b border-transparent data-[open=true]:border-slate-100"
+            data-open={isFiltersVisible}
+          >
+            <div className="flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-indigo-600">
+                <path d="M21 4H3"/><path d="M20 8H4"/><path d="M18 12H6"/><path d="M15 16H9"/><path d="M12 20H12"/>
+              </svg>
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-700">Filtrar Lançamentos</span>
+            </div>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className={`text-slate-300 transition-transform duration-300 ${isFiltersVisible ? 'rotate-180' : ''}`}>
+              <path d="m6 9 6 6 6-6"/>
             </svg>
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-700">Filtrar Lançamentos</span>
-          </div>
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className={`text-slate-300 transition-transform duration-300 ${isFiltersVisible ? 'rotate-180' : ''}`}>
-            <path d="m6 9 6 6 6-6"/>
-          </svg>
-        </button>
+          </button>
 
-        <div className={`p-4 ${isFiltersVisible ? 'block' : 'hidden lg:block'}`}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 items-end">
-            <div>
-              <label className="text-[9px] font-bold text-slate-400 uppercase mb-1.5 block">Início</label>
-              <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full bg-slate-50 border-none rounded-md px-3 py-2 text-xs font-bold text-indigo-600 outline-none" />
-            </div>
-            <div>
-              <label className="text-[9px] font-bold text-slate-400 uppercase mb-1.5 block">Fim</label>
-              <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full bg-slate-50 border-none rounded-md px-3 py-2 text-xs font-bold text-indigo-600 outline-none" />
-            </div>
-            
-            <div className="relative" ref={payerDropdownRef}>
-              <label className="text-[9px] font-bold text-slate-400 uppercase mb-1.5 block">Pagantes</label>
-              <button 
-                onClick={() => setIsPayerDropdownOpen(!isPayerDropdownOpen)}
-                className="w-full bg-slate-50 rounded-md px-4 py-2 text-xs font-bold text-slate-700 flex items-center justify-between border border-transparent hover:border-indigo-100 transition-colors"
-              >
-                <span className="truncate">{getPayerButtonLabel()}</span>
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-slate-300 ml-1"><path d="m6 9 6 6 6-6"/></svg>
-              </button>
+          <div className={`p-4 ${isFiltersVisible ? 'block' : 'hidden lg:block'}`}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 items-end">
+              <div>
+                <label className="text-[9px] font-bold text-slate-400 uppercase mb-1.5 block">Início</label>
+                <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full bg-slate-50 border-none rounded-md px-3 py-2 text-xs font-bold text-indigo-600 outline-none" />
+              </div>
+              <div>
+                <label className="text-[9px] font-bold text-slate-400 uppercase mb-1.5 block">Fim</label>
+                <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full bg-slate-50 border-none rounded-md px-3 py-2 text-xs font-bold text-indigo-600 outline-none" />
+              </div>
               
-              {isPayerDropdownOpen && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-2xl border border-slate-100 z-50 py-2 animate-in fade-in zoom-in-95 duration-200 min-w-[200px]">
-                  <button 
-                    onClick={() => togglePayerFilter('all')}
-                    className="w-full px-4 py-2.5 text-left text-xs font-bold flex items-center gap-3 hover:bg-slate-50 transition-colors text-slate-700"
-                  >
-                    <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors shrink-0 ${selectedPayers.includes('all') ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300'}`}>
-                      {selectedPayers.includes('all') && <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4"><path d="M20 6 9 17l-5-5"/></svg>}
-                    </div>
-                    <span className="flex-1">Todos</span>
-                  </button>
-                  <button 
-                    onClick={() => togglePayerFilter('individual')}
-                    className="w-full px-4 py-2.5 text-left text-xs font-bold flex items-center gap-3 hover:bg-slate-50 transition-colors text-slate-700"
-                  >
-                    <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors shrink-0 ${selectedPayers.includes('individual') ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300'}`}>
-                      {selectedPayers.includes('individual') && <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4"><path d="M20 6 9 17l-5-5"/></svg>}
-                    </div>
-                    <span className="flex-1">Apenas Eu</span>
-                  </button>
-                  <div className="h-px bg-slate-50 my-1 mx-2"></div>
-                  {categories.payers?.map(p => (
+              <div className="relative" ref={payerDropdownRef}>
+                <label className="text-[9px] font-bold text-slate-400 uppercase mb-1.5 block">Pagantes</label>
+                <button 
+                  onClick={() => setIsPayerDropdownOpen(!isPayerDropdownOpen)}
+                  className="w-full bg-slate-50 rounded-md px-4 py-2 text-xs font-bold text-slate-700 flex items-center justify-between border border-transparent hover:border-indigo-100 transition-colors"
+                >
+                  <span className="truncate">{getPayerButtonLabel()}</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-slate-300 ml-1"><path d="m6 9 6 6 6-6"/></svg>
+                </button>
+                
+                {isPayerDropdownOpen && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-2xl border border-slate-100 z-50 py-2 animate-in fade-in zoom-in-95 duration-200 min-w-[200px] max-h-80 overflow-y-auto">
                     <button 
-                      key={p}
-                      onClick={() => togglePayerFilter(p)}
+                      onClick={() => togglePayerFilter('all')}
                       className="w-full px-4 py-2.5 text-left text-xs font-bold flex items-center gap-3 hover:bg-slate-50 transition-colors text-slate-700"
                     >
-                      <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors shrink-0 ${selectedPayers.includes(p) ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300'}`}>
-                        {selectedPayers.includes(p) && <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4"><path d="M20 6 9 17l-5-5"/></svg>}
+                      <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors shrink-0 ${selectedPayers.includes('all') ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300'}`}>
+                        {selectedPayers.includes('all') && <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4"><path d="M20 6 9 17l-5-5"/></svg>}
                       </div>
-                      <span className="flex-1 truncate">{p}</span>
+                      <span className="flex-1">Todos</span>
                     </button>
-                  ))}
-                </div>
-              )}
-            </div>
+                    <button 
+                      onClick={() => togglePayerFilter('individual')}
+                      className="w-full px-4 py-2.5 text-left text-xs font-bold flex items-center gap-3 hover:bg-slate-50 transition-colors text-slate-700"
+                    >
+                      <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors shrink-0 ${selectedPayers.includes('individual') ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300'}`}>
+                        {selectedPayers.includes('individual') && <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4"><path d="M20 6 9 17l-5-5"/></svg>}
+                      </div>
+                      <span className="flex-1">Apenas Eu</span>
+                    </button>
+                    <div className="h-px bg-slate-50 my-1 mx-2"></div>
+                    {dynamicPayers.map(p => (
+                      <button 
+                        key={p}
+                        onClick={() => togglePayerFilter(p)}
+                        className="w-full px-4 py-2.5 text-left text-xs font-bold flex items-center gap-3 hover:bg-slate-50 transition-colors text-slate-700"
+                      >
+                        <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors shrink-0 ${selectedPayers.includes(p) ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300'}`}>
+                          {selectedPayers.includes(p) && <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4"><path d="M20 6 9 17l-5-5"/></svg>}
+                        </div>
+                        <span className="flex-1 truncate">{p}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
 
             <div>
               <label className="text-[9px] font-bold text-slate-400 uppercase mb-1.5 block">Status</label>

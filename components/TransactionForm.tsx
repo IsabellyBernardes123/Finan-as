@@ -340,7 +340,11 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
                   <div>
                     <label className="text-[8px] font-black text-indigo-400 uppercase mb-1 block">Quem é o pagante?</label>
                     <select value={partnerName} onChange={e => setPartnerName(e.target.value)} className="w-full h-9 px-3 bg-white rounded-md border border-indigo-50 text-[11px] font-black text-slate-800 outline-none">
-                      {categories.payers?.map(p => <option key={p} value={p}>{p}</option>)}
+                      {Array.from(new Set([
+                        ...(categories.payers || []),
+                        // Adiciona pagantes que já existem em outras transações mas podem não estar na lista oficial
+                        ...(partnerName ? [partnerName] : [])
+                      ])).sort().map(p => <option key={p} value={p}>{p}</option>)}
                     </select>
                   </div>
                   <div>
