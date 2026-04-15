@@ -262,12 +262,32 @@ export const useFinanceData = (userId: string | null) => {
     persistCategories(newCats);
   };
 
+  const syncPayers = useCallback(async () => {
+    if (!userId || transactions.length === 0) return;
+    
+    const transactionPayers = Array.from(new Set(
+      transactions
+        .filter(t => t.is_split && t.split_details?.partnerName)
+        .map(t => t.split_details!.partnerName)
+    ));
+    
+    const missingPayers = transactionPayers.filter(p => !categories.payers.includes(p));
+    
+    if (missingPayers.length > 0) {
+      const newPayers = [...categories.payers, ...missingPayers];
+      const newCats = { ...categories, payers: newPayers };
+      await persistCategories(newCats);
+      return true;
+    }
+    return false;
+  }, [userId, transactions, categories, persistCategories]);
+
   return {
     transactions, cards, accounts, categories,
     addTransaction, updateTransaction, deleteTransaction, togglePaid,
     addCard, updateCard, deleteCard,
     addAccount, deleteAccount,
-    addCategory, updateCategory, deleteCategory,
+    addCategory, updateCategory, deleteCategory, syncPayers,
     loading
   };
 };

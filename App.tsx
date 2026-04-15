@@ -28,10 +28,17 @@ const App: React.FC = () => {
     addTransaction, updateTransaction, deleteTransaction, togglePaid,
     addCard, updateCard, deleteCard, 
     addAccount, deleteAccount,
-    addCategory, updateCategory, deleteCategory, loading: dataLoading
+    addCategory, updateCategory, deleteCategory, syncPayers, loading: dataLoading
   } = useFinanceData(currentUser?.id || null);
   
   const [currentView, setCurrentView] = useState<ViewType>('dashboard');
+
+  // Auto-sync payers from transactions on load
+  useEffect(() => {
+    if (currentUser && transactions.length > 0) {
+      syncPayers();
+    }
+  }, [currentUser, transactions.length]); // Only sync when transactions are loaded or user changes
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
@@ -657,7 +664,7 @@ const App: React.FC = () => {
         );
       case 'add-expense': return renderTransactionManagement('expense');
       case 'add-income': return renderTransactionManagement('income');
-      case 'payers': return <PayerManager categories={categories} onAdd={addCategory} onDelete={deleteCategory} />;
+      case 'payers': return <PayerManager categories={categories} onAdd={addCategory} onDelete={deleteCategory} onSync={syncPayers} />;
       case 'cards': return <CardManager cards={cards} accounts={accounts} transactions={transactions} onAdd={addCard} onUpdate={updateCard} onDelete={deleteCard} />;
       case 'accounts': return <AccountManager accounts={accounts} transactions={transactions} categories={categories} cards={cards} onAdd={addAccount} onDelete={deleteAccount} onTogglePaid={togglePaid} onDeleteTransaction={deleteTransaction} />;
       case 'reports': return <Reports transactions={transactions} categories={categories} />;

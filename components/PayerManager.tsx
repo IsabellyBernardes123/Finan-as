@@ -6,10 +6,12 @@ interface PayerManagerProps {
   categories: UserCategories;
   onAdd: (type: 'payers', name: string) => void;
   onDelete: (type: 'payers', name: string) => void;
+  onSync?: () => Promise<boolean | undefined>;
 }
 
-const PayerManager: React.FC<PayerManagerProps> = ({ categories, onAdd, onDelete }) => {
+const PayerManager: React.FC<PayerManagerProps> = ({ categories, onAdd, onDelete, onSync }) => {
   const [newName, setNewName] = useState('');
+  const [syncing, setSyncing] = useState(false);
 
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
@@ -17,6 +19,13 @@ const PayerManager: React.FC<PayerManagerProps> = ({ categories, onAdd, onDelete
       onAdd('payers', newName.trim());
       setNewName('');
     }
+  };
+
+  const handleSync = async () => {
+    if (!onSync || syncing) return;
+    setSyncing(true);
+    await onSync();
+    setSyncing(false);
   };
 
   return (
@@ -27,6 +36,16 @@ const PayerManager: React.FC<PayerManagerProps> = ({ categories, onAdd, onDelete
             <h3 className="text-lg font-bold text-slate-900 tracking-tight">Gerenciar Pagantes</h3>
             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Pessoas com quem você divide contas</p>
           </div>
+          {onSync && (
+            <button 
+              onClick={handleSync}
+              disabled={syncing}
+              className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-indigo-100 transition-all disabled:opacity-50"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className={syncing ? 'animate-spin' : ''}><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+              {syncing ? 'Sincronizando...' : 'Sincronizar'}
+            </button>
+          )}
         </div>
 
         <form onSubmit={handleAdd} className="flex gap-3 mb-8">
