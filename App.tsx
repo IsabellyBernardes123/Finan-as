@@ -62,6 +62,7 @@ const App: React.FC = () => {
   const { firstDay: initStart, lastDay: initEnd } = getInitialDates();
   const [startDate, setStartDate] = useState(initStart);
   const [endDate, setEndDate] = useState(initEnd);
+  const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedPayers, setSelectedPayers] = useState<string[]>(['all']);
   const [statusFilter, setStatusFilter] = useState<'all' | 'paid' | 'pending'>('all');
@@ -309,7 +310,22 @@ const App: React.FC = () => {
           </button>
 
           <div className={`p-4 ${isFiltersVisible ? 'block' : 'hidden lg:block'}`}>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 items-end">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3 items-end">
+              <div className="lg:col-span-2">
+                <label className="text-[9px] font-bold text-slate-400 uppercase mb-1.5 block">Buscar Descrição</label>
+                <div className="relative">
+                  <input 
+                    type="text" 
+                    value={searchTerm} 
+                    onChange={(e) => setSearchTerm(e.target.value)} 
+                    placeholder="Ex: Aluguel, Mercado..." 
+                    className="w-full bg-slate-50 border-none rounded-md pl-9 pr-3 py-2 text-xs font-bold text-slate-700 outline-none placeholder:text-slate-300 focus:ring-2 focus:ring-indigo-100 transition-all" 
+                  />
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300">
+                    <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+                  </svg>
+                </div>
+              </div>
               <div>
                 <label className="text-[9px] font-bold text-slate-400 uppercase mb-1.5 block">Início</label>
                 <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full bg-slate-50 border-none rounded-md px-3 py-2 text-xs font-bold text-indigo-600 outline-none" />
@@ -391,6 +407,7 @@ const App: React.FC = () => {
                 const { firstDay, lastDay } = getInitialDates();
                 setStartDate(firstDay); 
                 setEndDate(lastDay); 
+                setSearchTerm('');
                 setSelectedCategory('all');
                 setSelectedPayers(['all']);
                 setStatusFilter('all');
@@ -412,6 +429,7 @@ const App: React.FC = () => {
         if (t.type !== type) return false;
         const tDate = t.date.split('T')[0];
         if (tDate < startDate || tDate > endDate) return false;
+        if (searchTerm && !t.description.toLowerCase().includes(searchTerm.toLowerCase())) return false;
         if (selectedCategory !== 'all' && t.category !== selectedCategory) return false;
         if (statusFilter === 'paid' && !t.is_paid) return false;
         if (statusFilter === 'pending' && t.is_paid) return false;
